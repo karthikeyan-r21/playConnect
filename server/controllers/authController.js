@@ -30,7 +30,7 @@ const validateAge = (dob) => {
   const dobDate = new Date(dob);
   if (isNaN(dobDate.getTime())) return false;
   
-  const age = new Date().getFullYear() - dobDate.getFullYear();
+  let age = new Date().getFullYear() - dobDate.getFullYear();
   const monthDiff = new Date().getMonth() - dobDate.getMonth();
   
   if (monthDiff < 0 || (monthDiff === 0 && new Date().getDate() < dobDate.getDate())) {
