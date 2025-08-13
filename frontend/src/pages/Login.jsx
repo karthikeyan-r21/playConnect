@@ -63,6 +63,7 @@ const Login = () => {
       email: formData.email.trim(),
       password: formData.password,
     });
+    console.log('Login result:', result);
 
     if (result.success) {
       // Login successful, redirect to dashboard

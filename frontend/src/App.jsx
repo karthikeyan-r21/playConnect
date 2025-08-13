@@ -6,6 +6,9 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import Dashboard from './pages/Dashboard';
+import Matches from './pages/Matches';
+import BrowseMatches from './pages/BrowseMatches';
+import ScheduledMatches from './pages/ScheduledMatches';
 import './App.css';
 
 // Protected Route Component
@@ -79,6 +82,24 @@ const AppContent = () => {
       <Route path="/dashboard" element={
         <ProtectedRoute>
           <Dashboard />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/matches" element={
+        <ProtectedRoute>
+          <Matches />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/browse-matches" element={
+        <ProtectedRoute>
+          <BrowseMatches />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/scheduled-matches" element={
+        <ProtectedRoute>
+          <ScheduledMatches />
         </ProtectedRoute>
       } />
 

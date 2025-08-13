@@ -128,8 +128,10 @@ export const AuthProvider = ({ children }) => {
       dispatch({ type: AUTH_ACTIONS.LOGIN_START });
       
       const response = await authAPI.login(credentials);
+      console.log('Login response:', response);
       
-      if (response.success) {
+      // Backend returns: { token, user: {...} }
+      if (response.token && response.user) {
         authAPI.setUserData(response.token, response.user);
         
         dispatch({
@@ -160,7 +162,8 @@ export const AuthProvider = ({ children }) => {
       
       const response = await authAPI.register(userData);
       
-      if (response.success) {
+      // Backend returns: { token, user: {...} }
+      if (response.token && response.user) {
         authAPI.setUserData(response.token, response.user);
         
         dispatch({

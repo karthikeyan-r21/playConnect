@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLogout } from '../hooks/useAuth';
 import { 
@@ -19,18 +20,25 @@ const Dashboard = () => {
   const { user } = useAuth();
   const { logout } = useLogout();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = () => {
     logout();
     // Navigation will be handled by the AuthContext
   };
 
+  const handleMenuClick = (route) => {
+    navigate(route);
+    setSidebarOpen(false); // Close sidebar on mobile after selection
+  };
+
   const menuItems = [
-    { icon: Users, label: 'Find Players', color: 'text-blue-500' },
-    { icon: Calendar, label: 'Schedule Match', color: 'text-green-500' },
-    { icon: MapPin, label: 'Book Venues', color: 'text-purple-500' },
-    { icon: Trophy, label: 'Join Tournament', color: 'text-yellow-500' },
-    { icon: Settings, label: 'Settings', color: 'text-gray-500' },
+    { icon: Users, label: 'Find Players', color: 'text-blue-500', route: '/find-players' },
+    { icon: Calendar, label: 'Matches', color: 'text-green-500', route: '/matches' },
+    { icon: MapPin, label: 'Book Venues', color: 'text-purple-500', route: '/venues' },
+    { icon: Trophy, label: 'Join Tournament', color: 'text-yellow-500', route: '/tournaments' },
+    { icon: Settings, label: 'Settings', color: 'text-gray-500', route: '/settings' },
   ];
 
   return (
@@ -86,8 +94,15 @@ const Dashboard = () => {
           <ul className="space-y-2">
             {menuItems.map((item, index) => (
               <li key={index}>
-                <button className="w-full flex items-center px-4 py-3 text-left text-gray-700 hover:bg-gray-100 rounded-lg transition-colors group">
-                  <item.icon className={`h-5 w-5 mr-3 ${item.color} group-hover:scale-110 transition-transform`} />
+                <button 
+                  onClick={() => handleMenuClick(item.route)}
+                  className={`w-full flex items-center px-4 py-3 text-left text-gray-700 hover:bg-gray-100 rounded-lg transition-colors group ${
+                    location.pathname === item.route ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-600' : ''
+                  }`}
+                >
+                  <item.icon className={`h-5 w-5 mr-3 ${item.color} group-hover:scale-110 transition-transform ${
+                    location.pathname === item.route ? 'text-blue-600' : ''
+                  }`} />
                   <span className="font-medium">{item.label}</span>
                 </button>
               </li>
@@ -148,9 +163,9 @@ const Dashboard = () => {
 
           {/* Quick Stats */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <button className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md hover:border-gray-200 transition-all duration-200 text-left group">
               <div className="flex items-center">
-                <div className="p-3 bg-yellow-100 rounded-lg">
+                <div className="p-3 bg-yellow-100 rounded-lg group-hover:bg-yellow-200 transition-colors">
                   <Trophy className="h-6 w-6 text-yellow-600" />
                 </div>
                 <div className="ml-4">
@@ -158,11 +173,11 @@ const Dashboard = () => {
                   <p className="text-2xl font-bold text-gray-900">0</p>
                 </div>
               </div>
-            </div>
+            </button>
             
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <button className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md hover:border-gray-200 transition-all duration-200 text-left group">
               <div className="flex items-center">
-                <div className="p-3 bg-blue-100 rounded-lg">
+                <div className="p-3 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors">
                   <Users className="h-6 w-6 text-blue-600" />
                 </div>
                 <div className="ml-4">
@@ -170,19 +185,22 @@ const Dashboard = () => {
                   <p className="text-2xl font-bold text-gray-900">0</p>
                 </div>
               </div>
-            </div>
+            </button>
             
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <button 
+              onClick={() => handleMenuClick('/browse-matches')}
+              className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md hover:border-gray-200 transition-all duration-200 text-left group"
+            >
               <div className="flex items-center">
-                <div className="p-3 bg-green-100 rounded-lg">
+                <div className="p-3 bg-green-100 rounded-lg group-hover:bg-green-200 transition-colors">
                   <Calendar className="h-6 w-6 text-green-600" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">Upcoming Matches</p>
+                  <p className="text-sm font-medium text-gray-500">Browse Matches</p>
                   <p className="text-2xl font-bold text-gray-900">0</p>
                 </div>
               </div>
-            </div>
+            </button>
           </div>
 
           {/* Recent Activity Placeholder */}
@@ -195,8 +213,11 @@ const Dashboard = () => {
               <p className="text-gray-500 mb-4">
                 Explore the menu to find players, book venues, or join tournaments.
               </p>
-              <button className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium">
-                Get Started
+              <button 
+                onClick={() => handleMenuClick('/matches')}
+                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              >
+                Create Your First Match
               </button>
             </div>
           </div>
@@ -206,33 +227,42 @@ const Dashboard = () => {
             <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
               <div className="space-y-3">
-                <div className="flex items-center p-3 bg-gray-50 rounded-lg">
+                <button 
+                  onClick={() => handleMenuClick('/browse-matches')}
+                  className="w-full flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-left"
+                >
                   <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
                     <Users className="h-4 w-4 text-blue-600" />
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <p className="text-sm font-medium text-gray-900">New player joined</p>
                     <p className="text-xs text-gray-500">2 hours ago</p>
                   </div>
-                </div>
-                <div className="flex items-center p-3 bg-gray-50 rounded-lg">
+                </button>
+                <button 
+                  onClick={() => handleMenuClick('/scheduled-matches')}
+                  className="w-full flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-left"
+                >
                   <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mr-3">
                     <Calendar className="h-4 w-4 text-green-600" />
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <p className="text-sm font-medium text-gray-900">Match scheduled</p>
                     <p className="text-xs text-gray-500">4 hours ago</p>
                   </div>
-                </div>
-                <div className="flex items-center p-3 bg-gray-50 rounded-lg">
+                </button>
+                <button 
+                  onClick={() => handleMenuClick('/venues')}
+                  className="w-full flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-left"
+                >
                   <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center mr-3">
                     <MapPin className="h-4 w-4 text-purple-600" />
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <p className="text-sm font-medium text-gray-900">Venue booked</p>
                     <p className="text-xs text-gray-500">6 hours ago</p>
                   </div>
-                </div>
+                </button>
               </div>
             </div>
 

@@ -12,8 +12,11 @@ app.use(express.urlencoded({ extended: true }));
 
 connectDB();
 
+
 app.use("/api/auth", require("./routes/authRoutes"));
 app.use("/api/password", require("./routes/passwordRoutes"));
+app.use("/api/matches", require("./routes/matchRoutes"));
+app.use("/api/users", require("./routes/userRoutes"));
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

@@ -29,6 +29,7 @@ export const authAPI = {
   login: async (credentials) => {
     const response = await api.post('/auth/login', credentials);
     return response.data;
+
   },
 
   // Send forgot password OTP
