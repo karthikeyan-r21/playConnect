@@ -73,6 +73,11 @@ export const getMyMatches = async () => {
   return await matchAPI.getMyMatches();
 };
 
+export const getCreatedMatches = async () => {
+  const response = await api.get('/matches/created-matches');
+  return response.data;
+};
+
 export const createMatch = async (matchData) => {
   return await matchAPI.createMatch(matchData);
 };

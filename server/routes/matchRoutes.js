@@ -10,7 +10,8 @@ const {
   joinMatch,
   leaveMatch,
   getMyMatches,
-  getJoinedMatches
+  getJoinedMatches,
+  getCreatedMatches
 } = require("../controllers/matchController");
 
 // Protected routes (require authentication)
@@ -20,6 +21,7 @@ router.use(auth);
 router.post("/", createMatch);
 router.get("/", getMatches);
 router.get("/my-matches", getMyMatches);
+router.get("/created-matches", getCreatedMatches);
 router.get("/joined-matches", getJoinedMatches);
 router.get("/:id", getMatch);
 router.put("/:id", updateMatch);

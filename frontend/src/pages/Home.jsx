@@ -161,7 +161,7 @@ const Home = () => {
                 <div className="text-blue-200 drop-shadow-md">Daily Matches</div>
               </div>
               <div className="text-white">
-                <div className="text-4xl font-bold mb-2 drop-shadow-lg">20+</div>
+                <div className="text-4xl font-bold mb-2 drop-shadow-lg">10+</div>
                 <div className="text-blue-200 drop-shadow-md">Game Categories</div>
               </div>
               <div className="text-white">

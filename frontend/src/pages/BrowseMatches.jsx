@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Calendar, MapPin, Users, Trophy, Filter, Search, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { getAllMatches, joinMatch } from '../services/matchAPI';
+import { useAuth } from '../context/AuthContext';
 
 const BrowseMatches = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [matches, setMatches] = useState([]);
   const [filteredMatches, setFilteredMatches] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -135,6 +137,12 @@ const BrowseMatches = () => {
   const MatchCard = ({ match }) => {
     const isMatchFull = match.participants?.length >= match.maxPlayers;
     const availableSpots = match.maxPlayers - (match.participants?.length || 0);
+    const isUserCreator = match.createdBy?._id === user?.id || match.createdBy === user?.id;
+    const isUserJoined = match.participants?.some(participant => 
+      participant._id === user?.id || participant === user?.id
+    );
+    // If user is creator, they are automatically considered as joined
+    const isUserParticipant = isUserCreator || isUserJoined;
     
     return (
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-200 overflow-hidden">
@@ -144,6 +152,7 @@ const BrowseMatches = () => {
               <h3 className="text-lg font-semibold text-gray-900 mb-1">{match.title}</h3>
               <p className="text-sm text-gray-500">
                 Organized by {match.createdBy?.name || 'Unknown'}
+                {isUserCreator && <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">You</span>}
               </p>
             </div>
             <div className="ml-4 text-right">
@@ -214,7 +223,23 @@ const BrowseMatches = () => {
           </div>
 
           <div className="pt-4 border-t border-gray-100">
-            {isMatchFull ? (
+            {isUserCreator ? (
+              <button 
+                disabled
+                className="w-full bg-blue-100 text-blue-700 border border-blue-200 py-2 px-4 rounded-lg cursor-default font-medium flex items-center justify-center"
+              >
+                <Trophy className="h-4 w-4 mr-2" />
+                Your Match
+              </button>
+            ) : isUserParticipant ? (
+              <button 
+                disabled
+                className="w-full bg-red-100 text-red-700 border border-red-200 py-2 px-4 rounded-lg cursor-default font-medium flex items-center justify-center"
+              >
+                <CheckCircle className="h-4 w-4 mr-2" />
+                Joined
+              </button>
+            ) : isMatchFull ? (
               <button 
                 disabled
                 className="w-full bg-gray-300 text-gray-500 py-2 px-4 rounded-lg cursor-not-allowed font-medium flex items-center justify-center"

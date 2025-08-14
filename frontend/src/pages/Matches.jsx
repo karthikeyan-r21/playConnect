@@ -12,7 +12,7 @@ import {
   ArrowLeft,
   Home
 } from 'lucide-react';
-import { matchAPI } from '../services/matchAPI';
+import { getCreatedMatches, createMatch, updateMatch, deleteMatch } from '../services/matchAPI';
 import { useAuth } from '../context/AuthContext';
 
 const Matches = () => {
@@ -63,7 +63,7 @@ const Matches = () => {
 
   const fetchMyMatches = async () => {
     try {
-      const response = await matchAPI.getMyMatches();
+      const response = await getCreatedMatches();
       setMyMatches(response.matches || []);
     } catch (error) {
       console.error('Error fetching my matches:', error);
@@ -85,7 +85,7 @@ const Matches = () => {
     setError(null);
 
     try {
-      await matchAPI.createMatch(formData);
+      await createMatch(formData);
       setSuccess(true);
       setShowCreateForm(false);
       setFormData({
@@ -127,7 +127,7 @@ const Matches = () => {
     setError(null);
 
     try {
-      await matchAPI.updateMatch(editingMatch._id, formData);
+      await updateMatch(editingMatch._id, formData);
       setSuccess(true);
       setShowEditForm(false);
       setEditingMatch(null);
@@ -157,7 +157,7 @@ const Matches = () => {
     }
 
     try {
-      await matchAPI.deleteMatch(matchId);
+      await deleteMatch(matchId);
       setSuccess(true);
       
       // Refresh matches

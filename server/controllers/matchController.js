@@ -244,6 +244,25 @@ exports.getMyMatches = async (req, res) => {
   }
 };
 
+// Get matches created by user only
+exports.getCreatedMatches = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    
+    const matches = await Match.find({
+      createdBy: userId
+    })
+    .populate("createdBy", "name email")
+    .populate("participants", "name email")
+    .sort({ date: 1 });
+
+    res.json({ matches });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ msg: "Server error" });
+  }
+};
+
 // Get matches user has joined (not created)
 exports.getJoinedMatches = async (req, res) => {
   try {

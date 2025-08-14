@@ -181,7 +181,7 @@ const Dashboard = () => {
                   <Users className="h-6 w-6 text-blue-600" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">Friends</p>
+                  <p className="text-sm font-medium text-gray-500">Teams</p>
                   <p className="text-2xl font-bold text-gray-900">0</p>
                 </div>
               </div>
@@ -197,7 +197,7 @@ const Dashboard = () => {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-500">Browse Matches</p>
-                  <p className="text-2xl font-bold text-gray-900">0</p>
+                 
                 </div>
               </div>
             </button>
