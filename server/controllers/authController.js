@@ -56,7 +56,7 @@ exports.register = async (req, res) => {
       name, dob, location, email, mobile, password: hashedPassword, profileImage: imageUrl
     });
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "50d" });
     res.status(201).json({ token, user: { id: user._id, name: user.name, email, profileImage: user.profileImage } });
   } catch (err) {
     console.error(err);
