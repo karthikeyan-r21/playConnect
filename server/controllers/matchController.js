@@ -14,8 +14,15 @@ exports.createMatch = async (req, res) => {
 
     // Check if date is in the future
     const matchDate = new Date(date);
-    if (matchDate <= new Date()) {
-      return res.status(400).json({ msg: "Match date must be in the future" });
+    let status = "upcoming";
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (matchDate.toDateString() === today.toDateString()) {
+      status = "ongoing";
+    } else if (matchDate < today) {
+      status = "past";
     }
 
     const match = await Match.create({
@@ -27,7 +34,7 @@ exports.createMatch = async (req, res) => {
       description: description || "",
       createdBy,
       participants: [createdBy], // Creator automatically joins
-      status: "upcoming"
+      status
     });
 
     const populatedMatch = await Match.findById(match._id)

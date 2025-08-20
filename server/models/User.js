@@ -7,7 +7,14 @@ const userSchema = new mongoose.Schema({
   mobile: String,
   dob: Date,
   location: String,
-  profileImage: String
+  profileImage: String,
+  media: [
+    {
+      type: { type: String, enum: ["image", "video"] },
+      url: { type: String, required: true },
+      uploadedAt: { type: Date, default: Date.now },
+    },
+  ],
 }, { timestamps: true });
 
 module.exports = mongoose.model("User", userSchema);
