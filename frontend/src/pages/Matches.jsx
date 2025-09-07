@@ -10,9 +10,10 @@ import {
   X,
   User,
   ArrowLeft,
-  Home
+  Home,
+  Eye
 } from 'lucide-react';
-import { getCreatedMatches, createMatch, updateMatch, deleteMatch } from '../services/matchAPI';
+import { getCreatedMatches, createMatch, updateMatch, deleteMatch, getMatchParticipants } from '../services/matchAPI';
 import { useAuth } from '../context/AuthContext';
 
 const Matches = () => {
@@ -22,6 +23,9 @@ const Matches = () => {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [editingMatch, setEditingMatch] = useState(null);
+  const [showParticipants, setShowParticipants] = useState(false);
+  const [selectedMatch, setSelectedMatch] = useState(null);
+  const [participants, setParticipants] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
@@ -169,6 +173,26 @@ const Matches = () => {
     }
   };
 
+  const handleViewParticipants = async (match) => {
+    try {
+      setSelectedMatch(match);
+      setIsLoading(true);
+      const participantData = await getMatchParticipants(match._id);
+      setParticipants(participantData.participants || []);
+      setShowParticipants(true);
+    } catch (error) {
+      setError(error.response?.data?.message || 'Failed to fetch participants');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const closeParticipantsModal = () => {
+    setShowParticipants(false);
+    setSelectedMatch(null);
+    setParticipants([]);
+  };
+
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
@@ -181,23 +205,59 @@ const Matches = () => {
     });
   };
 
-  const MatchCard = ({ match }) => (
-    <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow">
-      <div className="flex justify-between items-start mb-4">
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-1">{match.title}</h3>
-          <span className="inline-block bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
-            {match.gameType}
+  // Helper function to determine match status based on date
+  const getMatchStatus = (matchDate, currentStatus) => {
+    const now = new Date();
+    const match = new Date(matchDate);
+    
+    // If match date has passed, mark as finished
+    if (match < now) {
+      return 'finished';
+    }
+    
+    // If current status is cancelled, keep it cancelled
+    if (currentStatus === 'cancelled') {
+      return 'cancelled';
+    }
+    
+    // Otherwise, it's upcoming
+    return 'upcoming';
+  };
+
+  const MatchCard = ({ match }) => {
+    const dynamicStatus = getMatchStatus(match.date, match.status);
+    
+    return (
+      <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow">
+        <div className="flex justify-between items-start mb-4">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">{match.title}</h3>
+            <div className="flex items-center space-x-2">
+              <span className="inline-block bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                {match.gameType}
+              </span>
+              <button 
+                onClick={() => handleViewParticipants(match)}
+                className="text-gray-400 hover:text-gray-600 transition-colors relative ml-1"
+                title="View team members"
+              >
+                <Eye className="h-4 w-4" />
+                {match.participants?.length > 1 && (
+                  <span className="absolute -top-1 -right-6 bg-blue-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center border-2 border-white">
+                    {match.participants.length - 1}
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
+          <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+            dynamicStatus === 'upcoming' ? 'bg-green-100 text-green-800' :
+            dynamicStatus === 'finished' ? 'bg-blue-100 text-blue-800' :
+            'bg-red-100 text-red-800'
+          }`}>
+            {dynamicStatus}
           </span>
         </div>
-        <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-          match.status === 'upcoming' ? 'bg-green-100 text-green-800' :
-          match.status === 'completed' ? 'bg-gray-100 text-gray-800' :
-          'bg-red-100 text-red-800'
-        }`}>
-          {match.status}
-        </span>
-      </div>
 
       <div className="space-y-2 mb-4">
         <div className="flex items-center text-sm text-gray-600">
@@ -227,7 +287,7 @@ const Matches = () => {
           by {match.createdBy?.name || user?.name || 'You'}
         </div>
         <div className="flex space-x-2">
-          {match.status !== 'cancelled' && (
+          {dynamicStatus !== 'cancelled' && dynamicStatus !== 'finished' && (
             <>
               <button 
                 onClick={() => handleEdit(match)}
@@ -243,13 +303,17 @@ const Matches = () => {
               </button>
             </>
           )}
-          {match.status === 'cancelled' && (
+          {dynamicStatus === 'cancelled' && (
             <span className="text-xs text-gray-500 italic">Match cancelled</span>
+          )}
+          {dynamicStatus === 'finished' && (
+            <span className="text-xs text-gray-500 italic">Match finished</span>
           )}
         </div>
       </div>
     </div>
-  );
+    );
+  };
 
   return (
     <div className="flex h-full">
@@ -293,9 +357,29 @@ const Matches = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              {upcomingMatches.map((match) => (
-                <div key={match._id} className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="font-medium text-gray-900 mb-2">{match.title}</h4>
+              {upcomingMatches.map((match) => {
+                const dynamicStatus = getMatchStatus(match.date, match.status);
+                return (
+                  <div key={match._id} className="bg-gray-50 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-medium text-gray-900">{match.title}</h4>
+                      <div className="flex items-center space-x-2">
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                          dynamicStatus === 'upcoming' ? 'bg-green-100 text-green-800' :
+                          dynamicStatus === 'finished' ? 'bg-blue-100 text-blue-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {dynamicStatus}
+                        </span>
+                        <button 
+                          onClick={() => handleViewParticipants(match)}
+                          className="text-gray-400 hover:text-gray-600 transition-colors"
+                          title="View team members"
+                        >
+                          <Eye className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </div>
                   <div className="space-y-1">
                     <div className="flex items-center text-xs text-gray-600">
                       <Calendar className="h-3 w-3 mr-1" />
@@ -311,23 +395,26 @@ const Matches = () => {
                     </div>
                   </div>
                   <div className="mt-3 flex space-x-2">
-                    <button 
-                      onClick={() => handleEdit(match)}
-                      className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200"
-                    >
-                      Edit
-                    </button>
-                    {match.status !== 'cancelled' && (
-                      <button 
-                        onClick={() => handleDelete(match._id)}
-                        className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded hover:bg-red-200"
-                      >
-                        Cancel
-                      </button>
+                    {dynamicStatus !== 'cancelled' && dynamicStatus !== 'finished' && (
+                      <>
+                        <button 
+                          onClick={() => handleEdit(match)}
+                          className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200"
+                        >
+                          Edit
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(match._id)}
+                          className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded hover:bg-red-200"
+                        >
+                          Cancel
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -634,6 +721,92 @@ const Matches = () => {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Participants Modal */}
+      {showParticipants && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">Team Members</h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {selectedMatch?.title} - {participants.length} participants
+                  </p>
+                </div>
+                <button
+                  onClick={closeParticipantsModal}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              {participants.length === 0 ? (
+                <div className="text-center py-8">
+                  <Users className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+                  <p className="text-gray-500">No participants yet</p>
+                  <p className="text-gray-400 text-sm">Only you have joined this match</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {participants.map((participant, index) => (
+                    <div key={participant.id} className="bg-gray-50 rounded-lg p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center mb-2">
+                            <User className="h-5 w-5 text-gray-400 mr-2" />
+                            <h4 className="font-medium text-gray-900">{participant.name}</h4>
+                            {index === 0 && (
+                              <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                                Creator
+                              </span>
+                            )}
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <div className="flex items-center text-sm text-gray-600">
+                              <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207" />
+                              </svg>
+                              <span>{participant.email}</span>
+                            </div>
+                            
+                            {participant.phone && participant.phone !== 'Not provided' && (
+                              <div className="flex items-center text-sm text-gray-600">
+                                <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                </svg>
+                                <span>{participant.phone}</span>
+                              </div>
+                            )}
+                            
+                            {participant.location && participant.location !== 'Not provided' && (
+                              <div className="flex items-center text-sm text-gray-600">
+                                <MapPin className="h-4 w-4 mr-2" />
+                                <span>{participant.location}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="mt-6 flex justify-end">
+                <button
+                  onClick={closeParticipantsModal}
+                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>

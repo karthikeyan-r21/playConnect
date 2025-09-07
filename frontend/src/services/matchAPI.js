@@ -103,4 +103,16 @@ export const getJoinedMatches = async () => {
   return response.matches || response || [];
 };
 
+// Get participants for a match (only for match creator)
+export const getMatchParticipants = async (matchId) => {
+  const response = await api.get(`/participants/match/${matchId}/`);
+  return response.data;
+};
+
+// Remove participant from match (only for match creator)
+export const removeParticipant = async (matchId, participantId) => {
+  const response = await api.delete(`/participants/match/${matchId}/${participantId}`);
+  return response.data;
+};
+
 export default matchAPI;

@@ -9,6 +9,8 @@ import Dashboard from './pages/Dashboard';
 import Matches from './pages/Matches';
 import BrowseMatches from './pages/BrowseMatches';
 import ScheduledMatches from './pages/ScheduledMatches';
+import Teams from './pages/Teams';
+import TalentShowcase from './pages/TalentShowcase';
 import './App.css';
 
 // Protected Route Component
@@ -100,6 +102,18 @@ const AppContent = () => {
       <Route path="/scheduled-matches" element={
         <ProtectedRoute>
           <ScheduledMatches />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/teams" element={
+        <ProtectedRoute>
+          <Teams />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/talent-showcase" element={
+        <ProtectedRoute>
+          <TalentShowcase />
         </ProtectedRoute>
       } />
 

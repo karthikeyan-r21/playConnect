@@ -13,7 +13,8 @@ import {
   Settings, 
   Menu, 
   X,
-  Edit3 
+  Edit3,
+  Video
 } from 'lucide-react';
 
 const Dashboard = () => {
@@ -38,6 +39,7 @@ const Dashboard = () => {
     { icon: Calendar, label: 'Matches', color: 'text-green-500', route: '/matches' },
     { icon: MapPin, label: 'Book Venues', color: 'text-purple-500', route: '/venues' },
     { icon: Trophy, label: 'Join Tournament', color: 'text-yellow-500', route: '/tournaments' },
+    { icon: Video, label: 'Talent Showcase', color: 'text-pink-500', route: '/talent-showcase' },
     { icon: Settings, label: 'Settings', color: 'text-gray-500', route: '/settings' },
   ];
 
@@ -175,14 +177,17 @@ const Dashboard = () => {
               </div>
             </button>
             
-            <button className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md hover:border-gray-200 transition-all duration-200 text-left group">
+            <button 
+              onClick={() => handleMenuClick('/teams')}
+              className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md hover:border-gray-200 transition-all duration-200 text-left group"
+            >
               <div className="flex items-center">
                 <div className="p-3 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors">
                   <Users className="h-6 w-6 text-blue-600" />
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-500">Teams</p>
-                  <p className="text-2xl font-bold text-gray-900">0</p>
+                  
                 </div>
               </div>
             </button>
@@ -203,21 +208,21 @@ const Dashboard = () => {
             </button>
           </div>
 
-          {/* Recent Activity Placeholder */}
+          {/* Talent Showcase Section */}
           <div className="bg-white rounded-xl shadow-sm p-8 border border-gray-100 mb-8">
             <div className="text-center">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Play className="h-8 w-8 text-gray-400" />
+              <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Video className="h-8 w-8 text-white" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Ready to Start Playing?</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Showcase Your Talents</h3>
               <p className="text-gray-500 mb-4">
-                Explore the menu to find players, book venues, or join tournaments.
+                Upload videos and images to show off your skills and connect with other players.
               </p>
               <button 
-                onClick={() => handleMenuClick('/matches')}
-                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                onClick={() => handleMenuClick('/talent-showcase')}
+                className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200 font-medium"
               >
-                Create Your First Match
+                Upload Your Talent
               </button>
             </div>
           </div>
@@ -228,7 +233,7 @@ const Dashboard = () => {
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
               <div className="space-y-3">
                 <button 
-                  onClick={() => handleMenuClick('/browse-matches')}
+                  onClick={() => handleMenuClick('/matches')}
                   className="w-full flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-left"
                 >
                   <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
