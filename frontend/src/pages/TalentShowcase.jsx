@@ -21,6 +21,7 @@ const TalentShowcase = () => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploadType, setUploadType] = useState('video'); // 'video' or 'image'
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [error, setError] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -43,10 +44,10 @@ const TalentShowcase = () => {
       return;
     }
 
-    // Check file size (max 50MB for video, 5MB for image)
-    const maxSize = uploadType === 'video' ? 50 * 1024 * 1024 : 5 * 1024 * 1024;
+    // Check file size (max 25MB for video, 5MB for image)
+    const maxSize = uploadType === 'video' ? 25 * 1024 * 1024 : 5 * 1024 * 1024;
     if (file.size > maxSize) {
-      setError(`File size too large. Maximum ${uploadType === 'video' ? '50MB' : '5MB'} allowed.`);
+      setError(`File size too large. Maximum ${uploadType === 'video' ? '25MB' : '5MB'} allowed.`);
       return;
     }
 
@@ -67,6 +68,7 @@ const TalentShowcase = () => {
 
     setIsUploading(true);
     setError(null);
+    setUploadProgress(0);
 
     try {
       const result = await uploadMedia(selectedFile, uploadType);
@@ -74,12 +76,15 @@ const TalentShowcase = () => {
       setUploadSuccess(true);
       setSelectedFile(null);
       setPreview(null);
+      setUploadProgress(100);
       
       setTimeout(() => {
         setUploadSuccess(false);
+        setUploadProgress(0);
       }, 3000);
 
     } catch (error) {
+      console.error('Upload error:', error);
       setError(error.response?.data?.msg || error.message || 'Upload failed. Please try again.');
     } finally {
       setIsUploading(false);
@@ -91,6 +96,7 @@ const TalentShowcase = () => {
     setPreview(null);
     setError(null);
     setUploadSuccess(false);
+    setUploadProgress(0);
   };
 
   return (
@@ -201,7 +207,7 @@ const TalentShowcase = () => {
               </h4>
               <p className="text-gray-500 mb-4">
                 {uploadType === 'video' 
-                  ? 'MP4, WebM, OGG, AVI files up to 50MB' 
+                  ? 'MP4, WebM, OGG, AVI files up to 25MB' 
                   : 'JPEG, PNG, GIF files up to 5MB'
                 }
               </p>
@@ -254,7 +260,26 @@ const TalentShowcase = () => {
               </div>
               
               {/* Upload Button */}
-              <div className="flex justify-center">
+              <div className="flex flex-col items-center space-y-4">
+                {/* Progress Bar */}
+                {isUploading && (
+                  <div className="w-full max-w-md">
+                    <div className="flex justify-between text-sm text-gray-600 mb-2">
+                      <span>Uploading...</span>
+                      <span>{Math.round(uploadProgress)}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${uploadProgress}%` }}
+                      ></div>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2 text-center">
+                      This may take a few minutes for larger files...
+                    </p>
+                  </div>
+                )}
+                
                 <button
                   onClick={handleUpload}
                   disabled={isUploading}
@@ -263,7 +288,7 @@ const TalentShowcase = () => {
                   {isUploading ? (
                     <>
                       <Loader className="h-5 w-5 mr-2 animate-spin" />
-                      Uploading...
+                      {uploadType === 'video' ? 'Uploading Video...' : 'Uploading Image...'}
                     </>
                   ) : (
                     <>

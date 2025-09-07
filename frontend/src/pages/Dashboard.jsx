@@ -39,7 +39,6 @@ const Dashboard = () => {
     { icon: Calendar, label: 'Matches', color: 'text-green-500', route: '/matches' },
     { icon: MapPin, label: 'Book Venues', color: 'text-purple-500', route: '/venues' },
     { icon: Trophy, label: 'Join Tournament', color: 'text-yellow-500', route: '/tournaments' },
-    { icon: Video, label: 'Talent Showcase', color: 'text-pink-500', route: '/talent-showcase' },
     { icon: Settings, label: 'Settings', color: 'text-gray-500', route: '/settings' },
   ];
 

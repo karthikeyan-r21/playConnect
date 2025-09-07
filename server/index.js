@@ -6,9 +6,19 @@ const connectDB = require("./config/db");
 dotenv.config();
 const app = express();
 
+// Increase timeout for file uploads
+app.use((req, res, next) => {
+  // Set timeout to 5 minutes for media uploads
+  if (req.path.includes('/media')) {
+    req.setTimeout(300000); // 5 minutes
+    res.setTimeout(300000); // 5 minutes
+  }
+  next();
+});
+
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '30mb' })); // Increase JSON limit
+app.use(express.urlencoded({ extended: true, limit: '30mb' })); // Increase URL encoded limit
 
 connectDB();
 
