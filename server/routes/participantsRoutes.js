@@ -4,8 +4,8 @@ const router = express.Router();
 
 const participantsController = require("../controllers/participantsController");
 
-router.get('/match/:matchId/',auth, participantsController.getMatchParticipants);
-router.delete('/match/:matchId/:participantId',auth, participantsController.deleteParticipantFromMatch);
+router.get('/participants/:matchId', auth, participantsController.getMatchParticipants);
+router.delete('/:matchId/:participantId',auth, participantsController.deleteParticipantFromMatch);
 module.exports = router;
 
 

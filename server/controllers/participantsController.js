@@ -1,6 +1,4 @@
 const Match = require("../models/Match");
-
-
 exports.getMatchParticipants =
     async (req,res) =>
     {
@@ -20,10 +18,6 @@ exports.getMatchParticipants =
         }           
     };
 
-
-
-    
-
 exports.deleteParticipantFromMatch = async (req, res) => {
     try {
         const { matchId, participantId } = req.params;
@@ -39,6 +33,8 @@ exports.deleteParticipantFromMatch = async (req, res) => {
         if (participantId === match.createdBy.toString()) {
             return res.status(400).json({ message: "Creator cannot be removed from their own match" });
         }
+        // Get reason from request body
+        const reason = req.body.reason || "No reason provided";
         // Remove participant
         const beforeCount = match.participants.length;
         match.participants = match.participants.filter(
@@ -48,6 +44,13 @@ exports.deleteParticipantFromMatch = async (req, res) => {
             return res.status(404).json({ message: "Participant not found in match" });
         }
         await match.save();
+        // Notify participant
+        const Notification = require("../models/notification");
+        await Notification.create({
+            user: participantId,
+            message: `You have been removed from match "${match.title}". Reason: ${reason}`,
+            reason: "Removed from match"
+        });
         res.json({ message: "Participant removed successfully" });
     } catch (error) {
         console.error("Error deleting participant:", error);
