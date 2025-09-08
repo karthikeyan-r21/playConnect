@@ -11,18 +11,31 @@ import {
   UserPlus,
   UserMinus,
   Mail,
-  Trophy
+  Trophy,
+  Search,
+  MapPin,
+  Calendar,
+  Edit,
+  Trash2,
+  User,
+  Play
 } from 'lucide-react';
 import { 
-  getAllTeams, 
+  searchTeams, 
   createTeam, 
-  getMyTeams, 
+  getUserTeams,
+  getCreatedTeams,
+  getJoinedTeams,
   sendJoinRequest, 
   approveJoinRequest, 
   rejectJoinRequest,
   getTeamDetails,
+  getTeamMembers,
+  getJoinRequests,
   leaveTeam,
-  deleteTeamMember 
+  removeMember,
+  updateTeam,
+  deleteTeam
 } from '../services/teamAPI';
 import { useAuth } from '../context/AuthContext';
 
@@ -30,18 +43,33 @@ const Teams = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [allTeams, setAllTeams] = useState([]);
-  const [myTeams, setMyTeams] = useState([]);
+  const [myCreatedTeams, setMyCreatedTeams] = useState([]);
+  const [myJoinedTeams, setMyJoinedTeams] = useState([]);
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
   const [showTeamDetails, setShowTeamDetails] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState(null);
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [joinRequests, setJoinRequests] = useState([]);
   const [activeTab, setActiveTab] = useState('all');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedSportFilter, setSelectedSportFilter] = useState('');
+  const [myTeamsSearchQuery, setMyTeamsSearchQuery] = useState('');
+  const [myTeamsSportFilter, setMyTeamsSportFilter] = useState('');
+  
+  // Profile modal states
+  const [showUserProfile, setShowUserProfile] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
 
   const [formData, setFormData] = useState({
     name: '',
-    description: ''
+    description: '',
+    sportType: '',
+    location: '',
+    minAge: 0
   });
 
   const gameTypes = [
@@ -57,17 +85,68 @@ const Teams = () => {
     'Other'
   ];
 
+  const getSportColor = (sportType) => {
+    const colors = {
+      'Football': 'from-green-400 to-green-600',
+      'Basketball': 'from-orange-400 to-orange-600',
+      'Cricket': 'from-blue-400 to-blue-600',
+      'Tennis': 'from-yellow-400 to-yellow-600',
+      'Badminton': 'from-purple-400 to-purple-600',
+      'Volleyball': 'from-red-400 to-red-600',
+      'Table Tennis': 'from-pink-400 to-pink-600',
+      'Hockey': 'from-indigo-400 to-indigo-600',
+      'Baseball': 'from-gray-400 to-gray-600',
+      'Other': 'from-teal-400 to-teal-600'
+    };
+    return colors[sportType] || 'from-gray-100 to-gray-200';
+  };
+
+  const getSportBadgeColor = (sportType) => {
+    const colors = {
+      'Football': 'bg-green-100 text-green-800',
+      'Basketball': 'bg-orange-100 text-orange-800',
+      'Cricket': 'bg-blue-100 text-blue-800',
+      'Tennis': 'bg-yellow-100 text-yellow-800',
+      'Badminton': 'bg-purple-100 text-purple-800',
+      'Volleyball': 'bg-red-100 text-red-800',
+      'Table Tennis': 'bg-pink-100 text-pink-800',
+      'Hockey': 'bg-indigo-100 text-indigo-800',
+      'Baseball': 'bg-gray-100 text-gray-800',
+      'Other': 'bg-teal-100 text-teal-800'
+    };
+    return colors[sportType] || 'bg-gray-100 text-gray-800';
+  };
+
   useEffect(() => {
     fetchAllTeams();
     fetchMyTeams();
   }, []);
 
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      if (activeTab === 'all') {
+        fetchAllTeams();
+      }
+    }, 300);
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery, selectedSportFilter, activeTab]);
+
   const fetchAllTeams = async () => {
     try {
+      console.log('Fetching all teams with filters:', { searchQuery, selectedSportFilter });
       setIsLoading(true);
-      const response = await getAllTeams();
+      const params = {};
+      if (searchQuery.trim()) {
+        params.name = searchQuery;
+      }
+      if (selectedSportFilter) {
+        params.sportType = selectedSportFilter;
+      }
+      const response = await searchTeams(params);
+      console.log('All teams response:', response);
       setAllTeams(response.teams || []);
     } catch (err) {
+      console.error('Error fetching all teams:', err);
       setError('Failed to fetch teams');
     } finally {
       setIsLoading(false);
@@ -76,9 +155,18 @@ const Teams = () => {
 
   const fetchMyTeams = async () => {
     try {
-      const response = await getMyTeams();
-      setMyTeams(response.teams || []);
+      console.log('Fetching my teams for user:', user?.id);
+      if (user?.id) {
+        const [createdResponse, joinedResponse] = await Promise.all([
+          getCreatedTeams(user.id),
+          getJoinedTeams(user.id)
+        ]);
+        console.log('My teams response:', { createdResponse, joinedResponse });
+        setMyCreatedTeams(createdResponse.teams || []);
+        setMyJoinedTeams(joinedResponse.teams || []);
+      }
     } catch (err) {
+      console.error('Error fetching my teams:', err);
       setError('Failed to fetch my teams');
     }
   };
@@ -87,7 +175,7 @@ const Teams = () => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      [name]: name === 'minAge' ? parseInt(value) || 0 : value
     }));
   };
 
@@ -100,10 +188,7 @@ const Teams = () => {
       await createTeam(formData);
       setSuccess('Team created successfully!');
       setShowCreateForm(false);
-      setFormData({
-        name: '',
-        description: ''
-      });
+      resetForm();
       fetchAllTeams();
       fetchMyTeams();
       setTimeout(() => setSuccess(''), 3000);
@@ -114,49 +199,213 @@ const Teams = () => {
     }
   };
 
-  const handleJoinRequest = async (teamId) => {
+  const handleUpdateTeam = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+
+    console.log('Updating team:', selectedTeam._id, 'with data:', formData);
+
     try {
-      await sendJoinRequest(teamId);
-      setSuccess('Join request sent successfully!');
-      fetchAllTeams();
+      const response = await updateTeam(selectedTeam._id, formData);
+      console.log('Update response:', response);
+      
+      setSuccess('Team updated successfully!');
+      setShowEditForm(false);
+      resetForm();
+      
+      // Refresh all team data first
+      await Promise.all([
+        fetchAllTeams(),
+        fetchMyTeams()
+      ]);
+      
+      // Then refresh the team details modal if it's open
+      if (showTeamDetails && selectedTeam) {
+        await refreshTeamDetails(selectedTeam._id);
+      }
+      
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
+      console.error('Update error:', err);
+      setError(err.response?.data?.message || 'Failed to update team');
+      setTimeout(() => setError(''), 3000);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      description: '',
+      sportType: '',
+      location: '',
+      minAge: 0
+    });
+  };
+
+  const handleEditTeam = (team) => {
+    setSelectedTeam(team);
+    setFormData({
+      name: team.name,
+      description: team.description || '',
+      sportType: team.sportType || '',
+      location: team.location || '',
+      minAge: team.minAge || 0
+    });
+    setShowEditForm(true);
+  };
+
+  const handleDeleteTeam = async (teamId) => {
+    if (!window.confirm('Are you sure you want to delete this team?')) {
+      return;
+    }
+
+    try {
+      await deleteTeam(teamId, 'Team deleted by owner');
+      setSuccess('Team deleted successfully!');
+      fetchAllTeams();
+      fetchMyTeams();
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to delete team');
+      setTimeout(() => setError(''), 3000);
+    }
+  };
+
+  const handleViewTeam = async (team) => {
+    try {
+      console.log('Viewing team:', team);
+      console.log('Current user:', user);
+      console.log('Is team owner?', isTeamOwner(team));
+      
+      setSelectedTeam(team);
+      // Use getTeamMembers which returns both members and joinRequests
+      const response = await getTeamMembers(team._id);
+      console.log('Team data response:', response);
+      
+      setTeamMembers(response.members || []);
+      setJoinRequests(response.joinRequests || []);
+      setShowTeamDetails(true);
+    } catch (err) {
+      console.error('Error fetching team details:', err);
+      setError('Failed to fetch team details');
+    }
+  };
+
+  const refreshTeamDetails = async (teamId) => {
+    try {
+      console.log('Refreshing team details for:', teamId);
+      // Find the updated team from our current teams list
+      const updatedTeam = [...allTeams, ...myCreatedTeams, ...myJoinedTeams]
+        .find(team => team._id === teamId);
+      
+      console.log('Found updated team:', updatedTeam);
+      
+      if (updatedTeam) {
+        setSelectedTeam(updatedTeam);
+        // Use getTeamMembers which returns both members and joinRequests
+        const response = await getTeamMembers(teamId);
+        console.log('Refreshed team data:', response);
+        
+        setTeamMembers(response.members || []);
+        setJoinRequests(response.joinRequests || []);
+      }
+    } catch (err) {
+      console.error('Error refreshing team details:', err);
+      setError('Failed to refresh team details');
+    }
+  };
+
+  const isTeamOwner = (team) => {
+    if (!user?.id || !team) return false;
+    
+    // Check multiple possible fields for team creator/owner
+    const creatorId = team.createdBy?._id || team.createdBy || team.creator?._id || team.creator;
+    const ownerId = team.owner?._id || team.owner;
+    
+    console.log('Checking team ownership:', {
+      userId: user.id,
+      creatorId,
+      ownerId,
+      team: team
+    });
+    
+    return creatorId === user.id || ownerId === user.id;
+  };
+
+  const isTeamMember = (team) => {
+    return team.members?.some(member => 
+      (member._id === user?.id) || (member === user?.id)
+    );
+  };
+
+  const hasPendingRequest = (team) => {
+    return team.joinRequests?.some(request => 
+      (request._id === user?.id) || (request === user?.id)
+    );
+  };
+
+  const handleJoinRequest = async (teamId) => {
+    try {
+      console.log('Sending join request for team:', teamId);
+      await sendJoinRequest(teamId, 'Requesting to join the team');
+      setSuccess('Join request sent successfully!');
+      
+      // Refresh teams data
+      fetchAllTeams();
+      
+      // If the team details modal is open for this team, refresh it
+      if (showTeamDetails && selectedTeam?._id === teamId) {
+        await refreshTeamDetails(teamId);
+      }
+      
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      console.error('Error sending join request:', err);
       setError(err.response?.data?.message || 'Failed to send join request');
       setTimeout(() => setError(''), 3000);
     }
   };
 
-  const handleApproveRequest = async (teamId, userId) => {
+  const handleApproveRequest = async (userId) => {
     try {
-      await approveJoinRequest(teamId, userId);
+      console.log('Approving request for user:', userId, 'team:', selectedTeam._id);
+      await approveJoinRequest(selectedTeam._id, userId, 'Welcome to the team!');
       setSuccess('Request approved successfully!');
-      fetchTeamDetails(selectedTeam._id);
+      
+      // Refresh team details
+      await refreshTeamDetails(selectedTeam._id);
+      
+      // Also refresh all teams data
+      await Promise.all([
+        fetchAllTeams(),
+        fetchMyTeams()
+      ]);
+      
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
+      console.error('Error approving request:', err);
       setError(err.response?.data?.message || 'Failed to approve request');
       setTimeout(() => setError(''), 3000);
     }
   };
 
-  const handleRejectRequest = async (teamId, userId) => {
+  const handleRejectRequest = async (userId) => {
     try {
-      await rejectJoinRequest(teamId, userId);
+      console.log('Rejecting request for user:', userId, 'team:', selectedTeam._id);
+      await rejectJoinRequest(selectedTeam._id, userId, 'Join request rejected');
       setSuccess('Request rejected successfully!');
-      fetchTeamDetails(selectedTeam._id);
+      
+      // Refresh team details
+      await refreshTeamDetails(selectedTeam._id);
+      
       setTimeout(() => setSuccess(''), 3000);
     } catch (err) {
+      console.error('Error rejecting request:', err);
       setError(err.response?.data?.message || 'Failed to reject request');
       setTimeout(() => setError(''), 3000);
-    }
-  };
-
-  const fetchTeamDetails = async (teamId) => {
-    try {
-      const response = await getTeamDetails(teamId);
-      setSelectedTeam(response.team);
-      setShowTeamDetails(true);
-    } catch (err) {
-      setError('Failed to fetch team details');
     }
   };
 
@@ -166,7 +415,7 @@ const Teams = () => {
     }
 
     try {
-      await leaveTeam(teamId);
+      await leaveTeam(teamId, 'Left the team');
       setSuccess('Left team successfully!');
       setShowTeamDetails(false);
       fetchAllTeams();
@@ -176,6 +425,29 @@ const Teams = () => {
       setError(err.response?.data?.message || 'Failed to leave team');
       setTimeout(() => setError(''), 3000);
     }
+  };
+
+  const handleRemoveMember = async (memberId) => {
+    if (!window.confirm('Are you sure you want to remove this member?')) {
+      return;
+    }
+
+    try {
+      await removeMember(selectedTeam._id, memberId, 'Removed from team');
+      setSuccess('Member removed successfully!');
+      handleViewTeam(selectedTeam);
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to remove member');
+      setTimeout(() => setError(''), 3000);
+    }
+  };
+
+  const closeTeamDetails = () => {
+    setShowTeamDetails(false);
+    setSelectedTeam(null);
+    setTeamMembers([]);
+    setJoinRequests([]);
   };
 
   const handleDeleteMember = async (teamId, userId) => {
@@ -198,78 +470,140 @@ const Teams = () => {
     return team.members?.some(member => member._id === user?.id) || team.creator?._id === user?.id;
   };
 
+  // Handle viewing user profile
+  const handleViewUserProfile = (userToView) => {
+    setSelectedUser(userToView);
+    setShowUserProfile(true);
+  };
+
+  const closeUserProfile = () => {
+    setShowUserProfile(false);
+    setSelectedUser(null);
+  };
+
   const hasUserRequestedToJoin = (team) => {
     return team.joinRequests?.some(request => request.user?._id === user?.id && request.status === 'pending');
   };
 
-  const TeamCard = ({ team, showJoinButton = true }) => (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-200 overflow-hidden">
-      <div className="p-6">
+  const filterMyTeams = (teams) => {
+    return teams.filter(team => {
+      const matchesSearch = !myTeamsSearchQuery || 
+        team.name.toLowerCase().includes(myTeamsSearchQuery.toLowerCase()) ||
+        team.description?.toLowerCase().includes(myTeamsSearchQuery.toLowerCase());
+      
+      const matchesSport = !myTeamsSportFilter || team.sportType === myTeamsSportFilter;
+      
+      return matchesSearch && matchesSport;
+    });
+  };
+
+  const TeamCard = ({ team, showOwnerActions = false, showMemberActions = false }) => (
+    <div className={`bg-gradient-to-br ${getSportColor(team.sportType)} rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-200 overflow-hidden`}>
+      <div className="bg-white bg-opacity-90 backdrop-blur-sm p-6 h-full">
         <div className="flex items-start justify-between mb-4">
-          <div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">{team.name}</h3>
+          <div className="flex-1">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">{team.name}</h3>
+              <div className="flex items-center space-x-2">
+                {showOwnerActions && (
+                  <>
+                    <button
+                      onClick={() => handleEditTeam(team)}
+                      className="text-gray-400 hover:text-blue-600 transition-colors"
+                      title="Edit team"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteTeam(team._id)}
+                      className="text-gray-400 hover:text-red-600 transition-colors"
+                      title="Delete team"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </>
+                )}
+                <button
+                  onClick={() => handleViewTeam(team)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  title="View team details"
+                >
+                  <Users className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+            
             <div className="flex items-center space-x-2 mb-2">
-              {team.creator?._id === user?.id && (
+              {isTeamOwner(team) && (
                 <span className="inline-block bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
                   Owner
                 </span>
               )}
+              {team.sportType && (
+                <span className={`inline-block text-xs font-medium px-2.5 py-0.5 rounded-full ${getSportBadgeColor(team.sportType)}`}>
+                  {team.sportType}
+                </span>
+              )}
             </div>
-            <p className="text-sm text-gray-600">
-              Created by <span className="font-medium">{team.creator?.name || 'Unknown'}</span>
+            
+            <p className="text-sm text-gray-600 mb-2">
+              Created by <span className="font-medium">{team.createdBy?.name || 'Unknown'}</span>
             </p>
           </div>
-          <button
-            onClick={() => fetchTeamDetails(team._id)}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-            title="View team details"
-          >
-            <Users className="h-5 w-5" />
-          </button>
         </div>
 
-        <div className="space-y-3 mb-4">
+        <div className="space-y-2 mb-4">
           <div className="flex items-center text-sm text-gray-600">
             <Users className="h-4 w-4 mr-2" />
             <span>{team.members?.length || 0} members</span>
           </div>
+          {team.location && (
+            <div className="flex items-center text-sm text-gray-600">
+              <MapPin className="h-4 w-4 mr-2" />
+              <span>{team.location}</span>
+            </div>
+          )}
+          {team.minAge > 0 && (
+            <div className="flex items-center text-sm text-gray-600">
+              <Calendar className="h-4 w-4 mr-2" />
+              <span>Min age: {team.minAge}</span>
+            </div>
+          )}
         </div>
 
         {team.description && (
           <p className="text-sm text-gray-600 mb-4">{team.description}</p>
         )}
 
-        {showJoinButton && (
-          <div className="flex justify-end">
-            {!isUserInTeam(team) && !hasUserRequestedToJoin(team) && (
-              <button
-                onClick={() => handleJoinRequest(team._id)}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium flex items-center"
-              >
-                <UserPlus className="h-4 w-4 mr-1" />
-                Request to Join
-              </button>
-            )}
-            {hasUserRequestedToJoin(team) && (
-              <span className="text-sm text-yellow-600 font-medium">Request Pending</span>
-            )}
-            {isUserInTeam(team) && team.creator?._id !== user?.id && (
-              <button
-                onClick={() => handleLeaveTeam(team._id)}
-                className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors text-sm font-medium flex items-center"
-              >
-                <UserMinus className="h-4 w-4 mr-1" />
-                Leave Team
-              </button>
-            )}
-            {isUserInTeam(team) && team.creator?._id === user?.id && (
-              <span className="text-sm text-green-600 font-medium flex items-center">
-                <Crown className="h-4 w-4 mr-1" />
-                Your Team
-              </span>
-            )}
-          </div>
-        )}
+        <div className="flex justify-end">
+          {!showOwnerActions && !showMemberActions && !isTeamMember(team) && !hasPendingRequest(team) && (
+            <button
+              onClick={() => handleJoinRequest(team._id)}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium flex items-center"
+            >
+              <UserPlus className="h-4 w-4 mr-1" />
+              Request to Join
+            </button>
+          )}
+          {hasPendingRequest(team) && (
+            <span className="text-sm text-yellow-600 font-medium">Request Pending</span>
+          )}
+          {showMemberActions && (
+            <button
+              onClick={() => handleLeaveTeam(team._id)}
+              className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors text-sm font-medium flex items-center"
+            >
+              <UserMinus className="h-4 w-4 mr-1" />
+              Leave Team
+            </button>
+          )}
+          {showOwnerActions && (
+            <span className="text-sm text-green-600 font-medium flex items-center">
+              <Crown className="h-4 w-4 mr-1" />
+              Your Team
+            </span>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -286,7 +620,7 @@ const Teams = () => {
                 className="flex items-center text-gray-600 hover:text-gray-900 mr-4"
               >
                 <ArrowLeft className="h-5 w-5 mr-2" />
-                <span className="font-medium">Back to Dashboard</span>
+                
               </button>
               <h1 className="text-xl font-semibold text-gray-900">Teams</h1>
             </div>
@@ -347,34 +681,191 @@ const Teams = () => {
         ) : (
           <>
             {activeTab === 'all' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {allTeams.length === 0 ? (
-                  <div className="col-span-full text-center py-12">
-                    <Users className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No teams available</h3>
-                    <p className="text-gray-500">Be the first to create a team!</p>
+              <>
+                {/* Search and Filter Bar */}
+                <div className="mb-6 space-y-4">
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <div className="flex-1 relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      <input
+                        type="text"
+                        placeholder="Search teams by name..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div className="w-full sm:w-48">
+                      <select
+                        value={selectedSportFilter}
+                        onChange={(e) => setSelectedSportFilter(e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="">All Sports</option>
+                        {gameTypes.map((sport) => (
+                          <option key={sport} value={sport}>{sport}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
-                ) : (
-                  allTeams.map((team) => (
-                    <TeamCard key={team._id} team={team} />
-                  ))
-                )}
-              </div>
+                  
+                  {/* Active Filters Display */}
+                  {(searchQuery || selectedSportFilter) && (
+                    <div className="flex flex-wrap gap-2">
+                      {searchQuery && (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          Search: "{searchQuery}"
+                          <button
+                            onClick={() => setSearchQuery('')}
+                            className="ml-2 text-blue-600 hover:text-blue-800"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      )}
+                      {selectedSportFilter && (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          Sport: {selectedSportFilter}
+                          <button
+                            onClick={() => setSelectedSportFilter('')}
+                            className="ml-2 text-green-600 hover:text-green-800"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {allTeams.length === 0 ? (
+                    <div className="col-span-full text-center py-12">
+                      <Users className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No teams found</h3>
+                      <p className="text-gray-500">
+                        {searchQuery || selectedSportFilter 
+                          ? 'Try adjusting your search or filter criteria' 
+                          : 'Be the first to create a team!'
+                        }
+                      </p>
+                    </div>
+                  ) : (
+                    allTeams.map((team) => (
+                      <TeamCard key={team._id} team={team} />
+                    ))
+                  )}
+                </div>
+              </>
             )}
 
             {activeTab === 'my' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {myTeams.length === 0 ? (
-                  <div className="col-span-full text-center py-12">
-                    <Trophy className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No teams yet</h3>
-                    <p className="text-gray-500">Create or join a team to get started!</p>
+              <div className="space-y-8">
+                {/* Search and Filter Bar for My Teams */}
+                <div className="mb-6 space-y-4">
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <div className="flex-1 relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                      <input
+                        type="text"
+                        placeholder="Search my teams..."
+                        value={myTeamsSearchQuery}
+                        onChange={(e) => setMyTeamsSearchQuery(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div className="w-full sm:w-48">
+                      <select
+                        value={myTeamsSportFilter}
+                        onChange={(e) => setMyTeamsSportFilter(e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="">All Sports</option>
+                        {gameTypes.map((sport) => (
+                          <option key={sport} value={sport}>{sport}</option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
-                ) : (
-                  myTeams.map((team) => (
-                    <TeamCard key={team._id} team={team} showJoinButton={false} />
-                  ))
-                )}
+                  
+                  {/* Active Filters Display for My Teams */}
+                  {(myTeamsSearchQuery || myTeamsSportFilter) && (
+                    <div className="flex flex-wrap gap-2">
+                      {myTeamsSearchQuery && (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          Search: "{myTeamsSearchQuery}"
+                          <button
+                            onClick={() => setMyTeamsSearchQuery('')}
+                            className="ml-2 text-blue-600 hover:text-blue-800"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      )}
+                      {myTeamsSportFilter && (
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          Sport: {myTeamsSportFilter}
+                          <button
+                            onClick={() => setMyTeamsSportFilter('')}
+                            className="ml-2 text-green-600 hover:text-green-800"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Created Teams */}
+                <div>
+                  <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                    <Crown className="h-5 w-5 mr-2 text-yellow-500" />
+                    Teams I Created ({filterMyTeams(myCreatedTeams).length})
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {filterMyTeams(myCreatedTeams).length === 0 ? (
+                      <div className="col-span-full text-center py-8">
+                        <Crown className="h-12 w-12 text-gray-300 mx-auto mb-2" />
+                        <p className="text-gray-500">
+                          {myTeamsSearchQuery || myTeamsSportFilter 
+                            ? 'No created teams match your criteria' 
+                            : 'No teams created yet'
+                          }
+                        </p>
+                      </div>
+                    ) : (
+                      filterMyTeams(myCreatedTeams).map((team) => (
+                        <TeamCard key={team._id} team={team} showOwnerActions={true} />
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Joined Teams */}
+                <div>
+                  <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                    <Users className="h-5 w-5 mr-2 text-blue-500" />
+                    Teams I Joined ({filterMyTeams(myJoinedTeams).length})
+                  </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {filterMyTeams(myJoinedTeams).length === 0 ? (
+                      <div className="col-span-full text-center py-8">
+                        <Users className="h-12 w-12 text-gray-300 mx-auto mb-2" />
+                        <p className="text-gray-500">
+                          {myTeamsSearchQuery || myTeamsSportFilter 
+                            ? 'No joined teams match your criteria' 
+                            : 'Haven\'t joined any teams yet'
+                          }
+                        </p>
+                      </div>
+                    ) : (
+                      filterMyTeams(myJoinedTeams).map((team) => (
+                        <TeamCard key={team._id} team={team} showMemberActions={true} />
+                      ))
+                    )}
+                  </div>
+                </div>
               </div>
             )}
           </>
@@ -414,6 +905,54 @@ const Teams = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Sport Type *
+                  </label>
+                  <select
+                    name="sportType"
+                    value={formData.sportType}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Select sport type</option>
+                    {gameTypes.map((type) => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Location
+                  </label>
+                  <input
+                    type="text"
+                    name="location"
+                    value={formData.location}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="e.g., New York, NY"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Minimum Age
+                  </label>
+                  <input
+                    type="number"
+                    name="minAge"
+                    value={formData.minAge}
+                    onChange={handleInputChange}
+                    min="0"
+                    max="100"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="0 for no age restriction"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Description
                   </label>
                   <textarea
@@ -448,6 +987,123 @@ const Teams = () => {
         </div>
       )}
 
+      {/* Edit Team Modal */}
+      {showEditForm && selectedTeam && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-gray-900">Edit Team</h3>
+                <button
+                  onClick={() => setShowEditForm(false)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <form onSubmit={handleUpdateTeam} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Team Name *
+                  </label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="e.g., Thunder Bolts"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Sport Type *
+                  </label>
+                  <select
+                    name="sportType"
+                    value={formData.sportType}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Select sport type</option>
+                    {gameTypes.map((type) => (
+                      <option key={type} value={type}>{type}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Location
+                  </label>
+                  <input
+                    type="text"
+                    name="location"
+                    value={formData.location}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="e.g., New York, NY"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Minimum Age
+                  </label>
+                  <input
+                    type="number"
+                    name="minAge"
+                    value={formData.minAge}
+                    onChange={handleInputChange}
+                    min="0"
+                    max="100"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="0 for no age restriction"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Description
+                  </label>
+                  <textarea
+                    name="description"
+                    value={formData.description}
+                    onChange={handleInputChange}
+                    rows="3"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                    placeholder="Tell others about your team..."
+                  />
+                </div>
+
+                <div className="flex space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowEditForm(false)}
+                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isLoading ? 'Updating...' : 'Update Team'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Team Details Modal */}
       {showTeamDetails && selectedTeam && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -470,45 +1126,84 @@ const Teams = () => {
 
               {/* Team Info */}
               <div className="mb-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                   <div>
                     <h4 className="text-sm font-medium text-gray-900 mb-2">Creator</h4>
                     <p className="text-sm text-gray-600 flex items-center">
                       <Crown className="h-4 w-4 mr-2 text-yellow-500" />
-                      {selectedTeam.creator?.name || 'Unknown'}
+                      {selectedTeam.createdBy?.name || selectedTeam.creator?.name || 'Unknown'}
                     </p>
                   </div>
+                  {selectedTeam.sportType && (
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-900 mb-2">Sport Type</h4>
+                      <span className={`inline-block text-xs font-medium px-2.5 py-0.5 rounded-full ${getSportBadgeColor(selectedTeam.sportType)}`}>
+                        {selectedTeam.sportType}
+                      </span>
+                    </div>
+                  )}
+                  {selectedTeam.location && (
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-900 mb-2">Location</h4>
+                      <p className="text-sm text-gray-600 flex items-center">
+                        <MapPin className="h-4 w-4 mr-2" />
+                        {selectedTeam.location}
+                      </p>
+                    </div>
+                  )}
+                  {selectedTeam.minAge > 0 && (
+                    <div>
+                      <h4 className="text-sm font-medium text-gray-900 mb-2">Minimum Age</h4>
+                      <p className="text-sm text-gray-600 flex items-center">
+                        <Calendar className="h-4 w-4 mr-2" />
+                        {selectedTeam.minAge} years
+                      </p>
+                    </div>
+                  )}
                 </div>
                 {selectedTeam.description && (
-                  <div className="mt-4">
+                  <div>
                     <h4 className="text-sm font-medium text-gray-900 mb-2">Description</h4>
                     <p className="text-sm text-gray-600">{selectedTeam.description}</p>
                   </div>
                 )}
               </div>
 
-              {/* Members */}
+              {/* Members Section */}
               <div className="mb-6">
-                <h4 className="text-sm font-medium text-gray-900 mb-4">Members</h4>
-                {selectedTeam.members?.length === 0 ? (
-                  <p className="text-sm text-gray-500">No members yet</p>
+                <h4 className="text-sm font-medium text-gray-900 mb-4">
+                  Team Members ({teamMembers?.length || 0})
+                </h4>
+                {teamMembers?.length === 0 ? (
+                  <p className="text-sm text-gray-500 bg-gray-50 rounded-lg p-3">No members yet</p>
                 ) : (
                   <div className="space-y-3">
-                    {selectedTeam.members?.map((member) => (
-                      <div key={member._id} className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
+                    {teamMembers?.map((member) => (
+                      <div key={member._id} className="flex items-center justify-between bg-green-50 rounded-lg p-3 border border-green-200">
                         <div className="flex items-center">
-                          <div className="h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                            <Users className="h-4 w-4 text-blue-600" />
+                          <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center mr-3">
+                            <Users className="h-4 w-4 text-green-600" />
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-gray-900">{member.name}</p>
+                            <p className="text-sm font-medium text-gray-900 flex items-center">
+                              <button
+                                onClick={() => handleViewUserProfile(member)}
+                                className="text-blue-600 hover:text-blue-800 hover:underline transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 rounded"
+                              >
+                                {member.name}
+                              </button>
+                              {(member._id === selectedTeam.createdBy?._id || member._id === selectedTeam.creator?._id) && (
+                                <Crown className="h-3 w-3 ml-2 text-yellow-500" title="Team Owner" />
+                              )}
+                            </p>
                             <p className="text-xs text-gray-500">{member.email}</p>
                           </div>
                         </div>
-                        {selectedTeam.creator?._id === user?.id && member._id !== user?.id && (
+                        {/* Only show remove button for team owner and not for the owner themselves */}
+                        {isTeamOwner(selectedTeam) && member._id !== user?.id && member._id !== selectedTeam.createdBy?._id && (
                           <button
-                            onClick={() => handleDeleteMember(selectedTeam._id, member._id)}
-                            className="text-red-600 hover:text-red-700 transition-colors"
+                            onClick={() => handleRemoveMember(member._id)}
+                            className="text-red-600 hover:text-red-700 transition-colors p-1 rounded"
                             title="Remove member"
                           >
                             <UserMinus className="h-4 w-4" />
@@ -520,48 +1215,92 @@ const Teams = () => {
                 )}
               </div>
 
-              {/* Join Requests (only for team creator) */}
-              {selectedTeam.creator?._id === user?.id && selectedTeam.joinRequests?.length > 0 && (
+              {/* Join Requests Section */}
+              {console.log('Rendering join requests:', joinRequests)}
+              {console.log('Is team owner?', isTeamOwner(selectedTeam))}
+              {joinRequests && joinRequests.length > 0 && (
                 <div className="mb-6">
-                  <h4 className="text-sm font-medium text-gray-900 mb-4">Join Requests</h4>
+                  <h4 className="text-sm font-medium text-gray-900 mb-4">
+                    Join Requests ({joinRequests.length})
+                  </h4>
                   <div className="space-y-3">
-                    {selectedTeam.joinRequests
-                      .filter(request => request.status === 'pending')
-                      .map((request) => (
-                        <div key={request._id} className="flex items-center justify-between bg-yellow-50 rounded-lg p-3">
-                          <div className="flex items-center">
-                            <div className="h-8 w-8 bg-yellow-100 rounded-full flex items-center justify-center mr-3">
-                              <Mail className="h-4 w-4 text-yellow-600" />
+                    {joinRequests.map((request) => {
+                        console.log('Rendering request:', request);
+                        return (
+                          <div key={request._id || request.id} className="flex items-center justify-between bg-yellow-50 rounded-lg p-3 border border-yellow-200">
+                            <div className="flex items-center">
+                              <div className="h-8 w-8 bg-yellow-100 rounded-full flex items-center justify-center mr-3">
+                                <Mail className="h-4 w-4 text-yellow-600" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">
+                                  {request.name || request.user?.name || request.requester?.name || 'Unknown User'}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {request.email || request.user?.email || request.requester?.email || 'No email'}
+                                </p>
+                                <p className="text-xs text-yellow-600 mt-1">
+                                  Requested: {request.createdAt ? new Date(request.createdAt).toLocaleDateString() : 'Recently'}
+                                </p>
+                                {request.reason && (
+                                  <p className="text-xs text-gray-600 mt-1">"{request.reason}"</p>
+                                )}
+                              </div>
                             </div>
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">{request.user?.name}</p>
-                              <p className="text-xs text-gray-500">{request.user?.email}</p>
-                            </div>
+                            {/* Show approve/reject buttons for team owner */}
+                            {isTeamOwner(selectedTeam) && (
+                              <div className="flex space-x-2">
+                                <button
+                                  onClick={() => handleApproveRequest(request._id || request.id)}
+                                  className="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition-colors"
+                                  title="Approve request"
+                                >
+                                  <Check className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleRejectRequest(request._id || request.id)}
+                                  className="bg-red-600 text-white p-2 rounded-lg hover:bg-red-700 transition-colors"
+                                  title="Reject request"
+                                >
+                                  <X className="h-4 w-4" />
+                                </button>
+                              </div>
+                            )}
+                            {/* For non-owners, just show pending status */}
+                            {!isTeamOwner(selectedTeam) && (
+                              <span className="text-xs text-yellow-600 font-medium px-3 py-1 bg-yellow-100 rounded-full">
+                                Pending
+                              </span>
+                            )}
                           </div>
-                          <div className="flex space-x-2">
-                            <button
-                              onClick={() => handleApproveRequest(request._id)}
-                              className="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition-colors"
-                              title="Approve request"
-                            >
-                              <Check className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => handleRejectRequest(request._id)}
-                              className="bg-red-600 text-white p-2 rounded-lg hover:bg-red-700 transition-colors"
-                              title="Reject request"
-                            >
-                              <X className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                   </div>
                 </div>
               )}
 
-              <div className="flex justify-end space-x-3">
-                {isUserInTeam(selectedTeam) && selectedTeam.creator?._id !== user?.id && (
+              {/* Show message if team owner but no join requests */}
+              {isTeamOwner(selectedTeam) && (!joinRequests || joinRequests.length === 0) && (
+                <div className="mb-6">
+                  <h4 className="text-sm font-medium text-gray-900 mb-4">Join Requests</h4>
+                  <p className="text-sm text-gray-500 italic">No pending join requests</p>
+                </div>
+              )}
+
+              <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+                {/* Show join button if user is not in team and hasn't requested */}
+                {!isTeamMember(selectedTeam) && !isTeamOwner(selectedTeam) && !hasPendingRequest(selectedTeam) && (
+                  <button
+                    onClick={() => handleJoinRequest(selectedTeam._id)}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+                  >
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Request to Join
+                  </button>
+                )}
+                
+                {/* Show leave button if user is a member but not the owner */}
+                {isTeamMember(selectedTeam) && !isTeamOwner(selectedTeam) && (
                   <button
                     onClick={() => handleLeaveTeam(selectedTeam._id)}
                     className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center"
@@ -570,9 +1309,200 @@ const Teams = () => {
                     Leave Team
                   </button>
                 )}
+                
+                {/* Show edit button if user is the owner */}
+                {isTeamOwner(selectedTeam) && (
+                  <button
+                    onClick={() => {
+                      handleEditTeam(selectedTeam);
+                      setShowTeamDetails(false);
+                    }}
+                    className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center"
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit Team
+                  </button>
+                )}
+
                 <button
                   onClick={() => setShowTeamDetails(false)}
                   className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* User Profile Modal */}
+      {showUserProfile && selectedUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center">
+                  <div className="h-12 w-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center mr-4">
+                    <Users className="h-6 w-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900">{selectedUser.name}</h3>
+                    <p className="text-sm text-gray-500">Player Profile</p>
+                  </div>
+                </div>
+                <button
+                  onClick={closeUserProfile}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              {/* Profile Image */}
+              {selectedUser.profileImage ? (
+                <div className="mb-6 text-center">
+                  <img
+                    src={selectedUser.profileImage}
+                    alt={selectedUser.name}
+                    className="w-32 h-32 rounded-full mx-auto object-cover border-4 border-blue-100"
+                  />
+                </div>
+              ) : (
+                <div className="mb-6 text-center">
+                  <div className="w-32 h-32 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full mx-auto flex items-center justify-center border-4 border-blue-100">
+                    <Users className="h-16 w-16 text-white" />
+                  </div>
+                </div>
+              )}
+
+              {/* Profile Stats */}
+              <div className="mb-6">
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div className="bg-blue-50 rounded-lg p-4">
+                    <div className="text-2xl font-bold text-blue-600">
+                      {selectedUser.media?.length || 0}
+                    </div>
+                    <div className="text-sm text-gray-600">Media</div>
+                  </div>
+                  <div className="bg-green-50 rounded-lg p-4">
+                    <div className="text-2xl font-bold text-green-600">
+                      {/* You can add team count or other stats here */}
+                      {new Date().getFullYear() - new Date(selectedUser.dob || new Date().getFullYear() - 25).getFullYear()}
+                    </div>
+                    <div className="text-sm text-gray-600">Age</div>
+                  </div>
+                  <div className="bg-purple-50 rounded-lg p-4">
+                    <div className="text-2xl font-bold text-purple-600">
+                      {new Date(selectedUser.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                    </div>
+                    <div className="text-sm text-gray-600">Joined</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* User Bio/Description */}
+              <div className="mb-6">
+                <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center">
+                      <span className="font-semibold text-gray-900 text-lg">{selectedUser.name}</span>
+                      <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">Player</span>
+                    </div>
+                    
+                    {/* Contact Information */}
+                    <div className="space-y-2">
+                      <div className="flex items-center text-sm text-gray-600">
+                        <Mail className="h-4 w-4 mr-2 text-blue-500" />
+                        <span>{selectedUser.email}</span>
+                      </div>
+                      
+                      {selectedUser.mobile && (
+                        <div className="flex items-center text-sm text-gray-600">
+                          <Phone className="h-4 w-4 mr-2 text-green-500" />
+                          <span>{selectedUser.mobile}</span>
+                        </div>
+                      )}
+                      
+                      {selectedUser.location && (
+                        <div className="flex items-center text-sm text-gray-600">
+                          <MapPin className="h-4 w-4 mr-2 text-red-500" />
+                          <span>{selectedUser.location}</span>
+                        </div>
+                      )}
+                      
+                      {selectedUser.dob && (
+                        <div className="flex items-center text-sm text-gray-600">
+                          <Calendar className="h-4 w-4 mr-2 text-purple-500" />
+                          <span>Born {new Date(selectedUser.dob).toLocaleDateString('en-US', { 
+                            year: 'numeric', 
+                            month: 'long', 
+                            day: 'numeric' 
+                          })}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Social Links */}
+                    {selectedUser.instagramProfile && (
+                      <div className="pt-2 border-t border-gray-200">
+                        <a
+                          href={selectedUser.instagramProfile.startsWith('http') 
+                            ? selectedUser.instagramProfile 
+                            : `https://instagram.com/${selectedUser.instagramProfile}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center text-sm text-pink-600 hover:text-pink-800 transition-colors"
+                        >
+                          <svg className="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                          </svg>
+                          Follow on Instagram
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Media/Portfolio Section */}
+              {selectedUser.media && selectedUser.media.length > 0 && (
+                <div className="mb-6">
+                  <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
+                    <Play className="h-4 w-4 mr-2 text-blue-600" />
+                    Media Portfolio ({selectedUser.media.length})
+                  </h4>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {selectedUser.media.slice(0, 6).map((mediaItem, index) => (
+                      <div key={index} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden">
+                        {mediaItem.type === 'image' ? (
+                          <img
+                            src={mediaItem.url}
+                            alt={`Media ${index + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+                            <Play className="h-8 w-8 text-gray-500" />
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  {selectedUser.media.length > 6 && (
+                    <p className="text-sm text-gray-500 mt-2 text-center">
+                      +{selectedUser.media.length - 6} more items
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={closeUserProfile}
+                  className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
                 >
                   Close
                 </button>

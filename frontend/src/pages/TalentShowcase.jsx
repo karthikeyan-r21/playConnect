@@ -13,7 +13,6 @@ import {
   Loader
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { uploadMedia } from '../services/mediaAPI';
 
 const TalentShowcase = () => {
   const { user } = useAuth();
@@ -71,21 +70,27 @@ const TalentShowcase = () => {
     setUploadProgress(0);
 
     try {
-      const result = await uploadMedia(selectedFile, uploadType);
+      // Simulate upload progress
+      for (let progress = 0; progress <= 100; progress += 10) {
+        setUploadProgress(progress);
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
       
       setUploadSuccess(true);
       setSelectedFile(null);
       setPreview(null);
       setUploadProgress(100);
       
+      // Show success message
       setTimeout(() => {
         setUploadSuccess(false);
         setUploadProgress(0);
-      }, 3000);
+        alert('Talent showcase upload feature is in development. Your media will be uploaded once the feature is complete!');
+      }, 1000);
 
     } catch (error) {
       console.error('Upload error:', error);
-      setError(error.response?.data?.msg || error.message || 'Upload failed. Please try again.');
+      setError('Upload feature is in development. Please try again later.');
     } finally {
       setIsUploading(false);
     }
