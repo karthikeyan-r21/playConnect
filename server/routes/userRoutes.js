@@ -6,13 +6,10 @@ const multer = require("multer");
 
 const upload = multer({ dest: "uploads/" }); // Temporary storage for uploaded files
 // Get current user's profile
-router.get("/profile", auth, userController.getProfile);
+router.get("/profile/:userId", auth, userController.getProfile);
 
 // Update current user's profile
-router.put("/updateProfile", auth, userController.updateProfile);
+router.put("/updateProfile/:userId", auth, userController.updateProfile);
 
-
-
-router.post("/uploadMedia", auth, upload.single("file"), userController.uploadMedia);
 
 module.exports = router;

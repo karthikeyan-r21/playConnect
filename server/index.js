@@ -19,6 +19,8 @@ app.use("/api/matches", require("./routes/matchRoutes"));
 app.use("/api/users", require("./routes/userRoutes"));
 app.use("/api/participants", require("./routes/participantsRoutes"));
 app.use("/api/teams", require("./routes/teamRoutes"));
+app.use("/api/media", require("./routes/mediaRoutes"));
+
 
 app.use("/api/notifications", require("./routes/notificationRoutes"));
 

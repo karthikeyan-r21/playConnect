@@ -13,7 +13,8 @@ const matchSchema = new mongoose.Schema({
     type: String, 
     enum: ["upcoming", "completed", "cancelled"], 
     default: "upcoming" 
-  }
+  },
+  ageLimit: { type: Number, default: 0 } // Optional age restriction
 }, { timestamps: true });
 
 module.exports = mongoose.model("Match", matchSchema);
