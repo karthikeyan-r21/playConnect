@@ -37,6 +37,14 @@ exports.createMatch = async (req, res) => {
       status
     });
 
+    // Create notification for the user who created the match
+    const { createNotification } = require('./notificationController');
+    await createNotification(
+      createdBy,
+      `Your match "${title}" has been created successfully at ${location}`,
+      'match_created'
+    );
+
     const populatedMatch = await Match.findById(match._id)
       .populate("createdBy", "name email mobile dob location profileImage media createdAt")
       .populate("participants", "name email mobile dob location profileImage media createdAt");
@@ -166,7 +174,7 @@ exports.deleteMatch = async (req, res) => {
 // Join match
 exports.joinMatch = async (req, res) => {
   try {
-    const match = await Match.findById(req.params.id);
+    const match = await Match.findById(req.params.id).populate("createdBy", "name");
     if (!match) {
       return res.status(404).json({ msg: "Match not found" });
     }
@@ -185,6 +193,23 @@ exports.joinMatch = async (req, res) => {
 
     match.participants.push(req.user.id);
     await match.save();
+
+    // Create notification for the user who joined
+    const { createNotification } = require('./notificationController');
+    await createNotification(
+      req.user.id,
+      `You have successfully joined the match "${match.title}" at ${match.location}`,
+      'match_joined'
+    );
+
+    // Create notification for the match creator
+    if (match.createdBy._id.toString() !== req.user.id) {
+      await createNotification(
+        match.createdBy._id,
+        `${req.user.name} has joined your match "${match.title}"`,
+        'match_participant_joined'
+      );
+    }
 
     const updatedMatch = await Match.findById(req.params.id)
       .populate("createdBy", "name email mobile dob location profileImage media createdAt")

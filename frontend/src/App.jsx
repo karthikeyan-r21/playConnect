@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { NotificationProvider } from './context/NotificationContext';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -9,6 +10,7 @@ import Teams from './pages/Teams';
 import Matches from './pages/Matches';
 import BrowseMatches from './pages/BrowseMatches';
 import ScheduledMatches from './pages/ScheduledMatches';
+import Notifications from './pages/Notifications';
 import './App.css';
 
 // Simple test component to verify React is working
@@ -119,6 +121,12 @@ const AppContent = () => {
         </ProtectedRoute>
       } />
 
+      <Route path="/notifications" element={
+        <ProtectedRoute>
+          <Notifications />
+        </ProtectedRoute>
+      } />
+
       {/* Catch all route - redirect to home */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
@@ -128,11 +136,13 @@ const AppContent = () => {
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <div className="App">
-          <AppContent />
-        </div>
-      </Router>
+      <NotificationProvider>
+        <Router>
+          <div className="App">
+            <AppContent />
+          </div>
+        </Router>
+      </NotificationProvider>
     </AuthProvider>
   );
 }

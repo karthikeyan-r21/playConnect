@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useNotifications } from '../context/NotificationContext';
 import { useLogout } from '../hooks/useAuth';
 import { 
   Play, 
@@ -14,15 +15,19 @@ import {
   Menu, 
   X,
   Edit3,
-  Video
+  Video,
+  Bell
 } from 'lucide-react';
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const { getUnreadCount } = useNotifications();
   const { logout } = useLogout();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  
+  const unreadCount = getUnreadCount();
 
   const handleLogout = () => {
     logout();
@@ -43,16 +48,107 @@ const Dashboard = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <>
+      <style jsx>{`
+        @keyframes bell-ring {
+          0%, 100% { 
+            transform: rotate(0deg) scale(1); 
+          }
+          5% { 
+            transform: rotate(15deg) scale(1.05); 
+          }
+          15% { 
+            transform: rotate(-12deg) scale(1.05); 
+          }
+          25% { 
+            transform: rotate(15deg) scale(1.05); 
+          }
+          35% { 
+            transform: rotate(-8deg) scale(1.03); 
+          }
+          45% { 
+            transform: rotate(10deg) scale(1.03); 
+          }
+          55% { 
+            transform: rotate(-5deg) scale(1.02); 
+          }
+          65% { 
+            transform: rotate(6deg) scale(1.02); 
+          }
+          75% { 
+            transform: rotate(-2deg) scale(1.01); 
+          }
+          85% { 
+            transform: rotate(3deg) scale(1.01); 
+          }
+          95% { 
+            transform: rotate(-1deg) scale(1); 
+          }
+        }
+        
+        .animate-bell-ring {
+          animation: bell-ring 1.2s ease-in-out;
+          transform-origin: 50% 4px;
+        }
+        
+        @keyframes notification-glow {
+          0%, 100% { 
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+            transform: scale(1);
+          }
+          50% { 
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.9), 0 0 30px rgba(239, 68, 68, 0.4);
+            transform: scale(1.1);
+          }
+        }
+        
+        .notification-badge {
+          animation: notification-glow 2.5s infinite ease-in-out;
+        }
+        
+        @keyframes notification-bounce {
+          0%, 20%, 53%, 80%, 100% {
+            transform: translate3d(0,0,0) scale(1);
+          }
+          40%, 43% {
+            transform: translate3d(0,-8px,0) scale(1.1);
+          }
+          70% {
+            transform: translate3d(0,-4px,0) scale(1.05);
+          }
+          90% {
+            transform: translate3d(0,-1px,0) scale(1.02);
+          }
+        }
+        
+        .group:hover .notification-badge {
+          animation: notification-bounce 0.8s ease-in-out, notification-glow 2.5s infinite ease-in-out;
+        }
+        
+        @keyframes bell-shadow {
+          0%, 100% {
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+          }
+          50% {
+            filter: drop-shadow(0 8px 16px rgba(59, 130, 246, 0.3));
+          }
+        }
+        
+        .group:hover .bell-icon {
+          animation: bell-shadow 0.6s ease-in-out;
+        }
+      `}</style>
+      
+      <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
       <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 transition-transform duration-300 ease-in-out lg:static lg:inset-0 flex flex-col`}>
         {/* Profile Section */}
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center">
+            {/* <div className="flex items-center">
               <Play className="h-6 w-6 text-blue-600" />
               <span className="ml-2 text-lg font-bold text-gray-900">PlayConnect</span>
-            </div>
+            </div> */}
             <button
               onClick={() => setSidebarOpen(false)}
               className="lg:hidden text-gray-400 hover:text-gray-600"
@@ -146,7 +242,45 @@ const Dashboard = () => {
               <Play className="h-6 w-6 text-blue-600" />
               <span className="ml-2 text-lg font-bold text-gray-900">PlayConnect</span>
             </div>
-            <div className="w-6"></div>
+            <button
+              onClick={() => navigate('/notifications')}
+              className="relative text-gray-600 hover:text-blue-600 group transition-all duration-300"
+              title={unreadCount > 0 ? `${unreadCount} unread notifications` : 'Notifications'}
+            >
+              <Bell className="h-6 w-6 group-hover:animate-bell-ring bell-icon transition-all duration-300" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center notification-badge font-semibold">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </button>
+          </div>
+        </header>
+
+        {/* Desktop Header */}
+        <header className="hidden lg:block bg-white shadow-sm border-b border-gray-200">
+          <div className="px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <Play className="h-8 w-8 text-blue-600" />
+                <span className="ml-3 text-xl font-bold text-gray-900">PlayConnect</span>
+              </div>
+              <div className="flex items-center space-x-4">
+                
+                <button
+                  onClick={() => navigate('/notifications')}
+                  className="relative p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-300 group"
+                  title={unreadCount > 0 ? `${unreadCount} unread notifications` : 'Notifications'}
+                >
+                  <Bell className="h-6 w-6 group-hover:animate-bell-ring bell-icon transition-all duration-300" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center notification-badge font-semibold">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         </header>
 
@@ -318,6 +452,7 @@ const Dashboard = () => {
         </main>
       </div>
     </div>
+    </>
   );
 };
 

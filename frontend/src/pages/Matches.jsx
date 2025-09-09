@@ -18,17 +18,7 @@ import {
   Filter,
   GamepadIcon
 } from 'lucide-react';
-import { 
-  getCreatedMatches, 
-  createMatch, 
-  updateMatch, 
-  deleteMatch, 
-  getMatchParticipants,
-  getAllMatches,
-  joinMatch,
-  leaveMatch,
-  getMyMatches
-} from '../services/matchAPI';
+import { matchAPI } from '../services/matchAPI';
 import { useAuth } from '../context/AuthContext';
 
 const Matches = () => {
@@ -44,6 +34,9 @@ const Matches = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [joinLoading, setJoinLoading] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGameFilter, setSelectedGameFilter] = useState('');
 
@@ -70,6 +63,68 @@ const Matches = () => {
     'Other'
   ];
 
+  // Sport color mapping - matching Teams page colors
+  const getSportColors = (sport) => {
+    const sportColors = {
+      'Cricket': {
+        gradient: 'from-blue-400 to-blue-600',
+        badge: 'bg-blue-100 text-blue-800',
+        button: 'bg-blue-600 hover:bg-blue-700'
+      },
+      'Football': {
+        gradient: 'from-green-400 to-green-600',
+        badge: 'bg-green-100 text-green-800',
+        button: 'bg-green-600 hover:bg-green-700'
+      },
+      'Basketball': {
+        gradient: 'from-orange-400 to-orange-600',
+        badge: 'bg-orange-100 text-orange-800',
+        button: 'bg-orange-600 hover:bg-orange-700'
+      },
+      'Tennis': {
+        gradient: 'from-yellow-400 to-yellow-600',
+        badge: 'bg-yellow-100 text-yellow-800',
+        button: 'bg-yellow-600 hover:bg-yellow-700'
+      },
+      'Badminton': {
+        gradient: 'from-purple-400 to-purple-600',
+        badge: 'bg-purple-100 text-purple-800',
+        button: 'bg-purple-600 hover:bg-purple-700'
+      },
+      'Volleyball': {
+        gradient: 'from-red-400 to-red-600',
+        badge: 'bg-red-100 text-red-800',
+        button: 'bg-red-600 hover:bg-red-700'
+      },
+      'Table Tennis': {
+        gradient: 'from-pink-400 to-pink-600',
+        badge: 'bg-pink-100 text-pink-800',
+        button: 'bg-pink-600 hover:bg-pink-700'
+      },
+      'Hockey': {
+        gradient: 'from-indigo-400 to-indigo-600',
+        badge: 'bg-indigo-100 text-indigo-800',
+        button: 'bg-indigo-600 hover:bg-indigo-700'
+      },
+      'Baseball': {
+        gradient: 'from-gray-400 to-gray-600',
+        badge: 'bg-gray-100 text-gray-800',
+        button: 'bg-gray-600 hover:bg-gray-700'
+      },
+      'Other': {
+        gradient: 'from-teal-400 to-teal-600',
+        badge: 'bg-teal-100 text-teal-800',
+        button: 'bg-teal-600 hover:bg-teal-700'
+      }
+    };
+
+    return sportColors[sport] || {
+      gradient: 'from-gray-400 to-gray-600',
+      badge: 'bg-gray-100 text-gray-800',
+      button: 'bg-gray-600 hover:bg-gray-700'
+    };
+  };
+
   useEffect(() => {
     fetchMyCreatedMatches();
   }, []);
@@ -80,6 +135,21 @@ const Matches = () => {
     }, 300);
     return () => clearTimeout(delayDebounceFn);
   }, [searchQuery, selectedGameFilter]);
+
+  // Clear messages after timeout
+  useEffect(() => {
+    if (successMessage) {
+      const timer = setTimeout(() => setSuccessMessage(''), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMessage]);
+
+  useEffect(() => {
+    if (errorMessage) {
+      const timer = setTimeout(() => setErrorMessage(''), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [errorMessage]);
 
 
 
@@ -94,7 +164,7 @@ const Matches = () => {
       if (selectedGameFilter) {
         params.gameType = selectedGameFilter;
       }
-      const response = await getCreatedMatches(params);
+      const response = await matchAPI.getMyMatches(params);
       setMyCreatedMatches(response.matches || response.data || []);
     } catch (error) {
       console.error('Error fetching my created matches:', error);
@@ -175,7 +245,7 @@ const Matches = () => {
     setError(null);
 
     try {
-      await updateMatch(editingMatch._id, formData);
+      await matchAPI.updateMatch(editingMatch._id, formData);
       setSuccess('Match updated successfully!');
       setShowEditForm(false);
       setEditingMatch(null);
@@ -205,7 +275,7 @@ const Matches = () => {
     }
 
     try {
-      await deleteMatch(matchId);
+      await matchAPI.deleteMatch(matchId);
       setSuccess('Match cancelled successfully!');
       
       // Refresh matches
@@ -223,7 +293,7 @@ const Matches = () => {
     try {
       setSelectedMatch(match);
       setIsLoading(true);
-      const participantData = await getMatchParticipants(match._id);
+      const participantData = await matchAPI.getMatch(match._id);
       setParticipants(participantData.participants || []);
       setShowParticipants(true);
     } catch (error) {
@@ -308,16 +378,21 @@ const Matches = () => {
     const isParticipant = isUserParticipant(match);
     const canJoin = canJoinMatch(match);
     const canLeave = canLeaveMatch(match);
+    const colors = getSportColors(match.gameType);
     
     return (
-      <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md transition-shadow">
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-1">{match.title}</h3>
-            <div className="flex items-center space-x-2">
-              <span className="inline-block bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
-                {match.gameType}
-              </span>
+      <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 overflow-hidden border border-gray-200">
+        {/* Sport gradient header */}
+        <div className={`h-2 bg-gradient-to-r ${colors.gradient}`}></div>
+        
+        <div className="p-6">
+          <div className="flex justify-between items-start mb-4">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-1">{match.title}</h3>
+              <div className="flex items-center space-x-2">
+                <span className={`inline-block text-xs font-medium px-2.5 py-0.5 rounded-full ${colors.badge}`}>
+                  {match.gameType}
+                </span>
               <button 
                 onClick={() => handleViewParticipants(match)}
                 className="text-gray-400 hover:text-gray-600 transition-colors relative ml-1"
@@ -343,19 +418,19 @@ const Matches = () => {
 
         <div className="space-y-2 mb-4">
           <div className="flex items-center text-sm text-gray-600">
-            <Calendar className="h-4 w-4 mr-2" />
+            <Calendar className="h-4 w-4 mr-2 text-green-500" />
             {formatDate(match.date)}
           </div>
           <div className="flex items-center text-sm text-gray-600">
-            <MapPin className="h-4 w-4 mr-2" />
+            <MapPin className="h-4 w-4 mr-2 text-red-500" />
             {match.location}
           </div>
           <div className="flex items-center text-sm text-gray-600">
-            <Users className="h-4 w-4 mr-2" />
+            <Users className="h-4 w-4 mr-2 text-indigo-500" />
             {match.participants?.length || 0} / {match.maxPlayers} players
           </div>
           <div className="flex items-center text-sm text-gray-600">
-            <User className="h-4 w-4 mr-2" />
+            <User className="h-4 w-4 mr-2 text-purple-500" />
             Created by {isCreator ? 'you' : match.createdBy?.name || 'Unknown'}
           </div>
         </div>
@@ -376,7 +451,7 @@ const Matches = () => {
                 <>
                   <button 
                     onClick={() => handleEdit(match)}
-                    className="bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 transition-colors text-xs font-medium"
+                    className={`text-white px-3 py-1.5 rounded-lg transition-colors text-xs font-medium ${colors.button}`}
                   >
                     Edit
                   </button>
@@ -394,7 +469,7 @@ const Matches = () => {
                 <button 
                   onClick={() => handleJoinMatch(match._id)}
                   disabled={joinLoading === match._id}
-                  className="bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 transition-colors text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                  className={`text-white px-3 py-1.5 rounded-lg transition-colors text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center ${colors.button}`}
                 >
                   {joinLoading === match._id ? (
                     <span className="animate-spin">⏳</span>
@@ -440,6 +515,7 @@ const Matches = () => {
             </div>
           </div>
         )}
+        </div>
       </div>
     );
   };
@@ -512,47 +588,78 @@ const Matches = () => {
     });
   };
 
+  // Handle join match
+  const handleJoinMatch = async (matchId) => {
+    try {
+      setJoinLoading(matchId);
+      await matchAPI.joinMatch(matchId);
+      setSuccessMessage('Successfully joined match!');
+      await fetchMyCreatedMatches();
+    } catch (error) {
+      console.error('Error joining match:', error);
+      setErrorMessage(error.response?.data?.message || 'Failed to join match');
+    } finally {
+      setJoinLoading(null);
+    }
+  };
+
+  // Handle leave match
+  const handleLeaveMatch = async (matchId) => {
+    try {
+      setJoinLoading(matchId);
+      await matchAPI.leaveMatch(matchId);
+      setSuccessMessage('Successfully left match!');
+      await fetchMyCreatedMatches();
+    } catch (error) {
+      console.error('Error leaving match:', error);
+      setErrorMessage(error.response?.data?.message || 'Failed to leave match');
+    } finally {
+      setJoinLoading(null);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 px-4 py-8">
-      <div className="max-w-6xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">My Matches</h1>
-            <p className="text-gray-600">Create and manage your matches</p>
-          </div>
-          <div className="flex space-x-4">
-            <button
-              onClick={() => navigate('/dashboard')}
-              className="flex items-center px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <ArrowLeft className="h-5 w-5 mr-2" />
-              Back to Dashboard
-            </button>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white shadow-sm border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center">
+              <button
+                onClick={() => navigate('/dashboard')}
+                className="flex items-center text-gray-600 hover:text-gray-900 mr-4"
+              >
+                <ArrowLeft className="h-5 w-5 mr-2" />
+              </button>
+              <h1 className="text-xl font-semibold text-gray-900">My Matches</h1>
+            </div>
             <button
               onClick={() => setShowMatchForm(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center"
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium flex items-center"
             >
-              <Plus className="h-5 w-5 mr-2" />
+              <Plus className="h-4 w-4 mr-2" />
               Create Match
             </button>
           </div>
         </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* Success/Error Messages */}
-        {success && (
+        {successMessage && (
           <div className="mb-6 p-4 bg-green-100 border border-green-200 text-green-700 rounded-lg">
-            {success}
+            {successMessage}
           </div>
         )}
-        
-        {error && (
+        {errorMessage && (
           <div className="mb-6 p-4 bg-red-100 border border-red-200 text-red-700 rounded-lg">
-            {error}
+            {errorMessage}
           </div>
         )}
 
         {/* Search and Filter Bar */}
-        <div className="bg-white rounded-lg shadow-md mb-6 p-4">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-8 p-4">
           <div className="flex gap-4">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -561,14 +668,14 @@ const Matches = () => {
                 placeholder="Search your matches by title, location, or game..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
             <div className="relative">
               <select
                 value={selectedGameFilter}
                 onChange={(e) => setSelectedGameFilter(e.target.value)}
-                className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 appearance-none bg-white pr-8"
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white pr-8"
               >
                 <option value="">All Games</option>
                 {gameTypes.map(type => (
