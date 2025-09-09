@@ -99,8 +99,8 @@ exports.searchTeams = async (req, res) => {
     if (description) filter.description = { $regex: description, $options: "i" };
 
     const teams = await Team.find(filter)
-      .populate("createdBy", "name email")
-      .populate("members", "name email");
+      .populate("createdBy", "name email mobile dob location profileImage media createdAt")
+      .populate("members", "name email mobile dob location profileImage media createdAt");
 
     res.json({ teams });
   } catch (error) {
@@ -270,9 +270,9 @@ exports.getTeamDetails = async (req, res) => {
     const { teamId } = req.params;
 
     const team = await Team.findById(teamId)
-      .populate("members", "name email")
-      .populate("createdBy", "name email")
-      .populate("joinRequests", "name email");
+      .populate("members", "name email mobile dob location profileImage media createdAt")
+      .populate("createdBy", "name email mobile dob location profileImage media createdAt")
+      .populate("joinRequests", "name email mobile dob location profileImage media createdAt");
 
     if (!team) {
       return res.status(404).json({ message: "Team not found" });
@@ -372,8 +372,8 @@ exports.getJoinedTeams = async (req, res) => {
       members: userId,
       createdBy: { $ne: userId }
     })
-      .populate("createdBy", "name email")
-      .populate("members", "name email");
+      .populate("createdBy", "name email mobile dob location profileImage media createdAt")
+      .populate("members", "name email mobile dob location profileImage media createdAt");
     res.json({ teams });
   } catch (err) {
     console.error(err);
@@ -388,8 +388,8 @@ exports.getCreatedTeams = async (req, res) => {
     const teams = await Team.find({
       createdBy: userId
     })
-      .populate("createdBy", "name email")
-      .populate("members", "name email");
+      .populate("createdBy", "name email mobile dob location profileImage media createdAt")
+      .populate("members", "name email mobile dob location profileImage media createdAt");
     res.json({ teams });
   } catch (err) {
     console.error(err);
@@ -400,7 +400,7 @@ exports.getCreatedTeams = async (req, res) => {
 exports.listJoinRequests = async (req, res) => {
   try {
     const { teamId } = req.params;
-    const team = await Team.findById(teamId).populate("joinRequests", "name email");
+    const team = await Team.findById(teamId).populate("joinRequests", "name email mobile dob location profileImage media createdAt");
     if (!team) {
       return res.status(404).json({ message: "Team not found" });
     }
@@ -419,8 +419,8 @@ exports.getTeamMembers = async (req, res) => {
   try {
     const { teamId } = req.params;
     const team = await Team.findById(teamId)
-      .populate("members", "name email")
-      .populate("joinRequests", "name email");
+      .populate("members", "name email mobile dob location profileImage media createdAt")
+      .populate("joinRequests", "name email mobile dob location profileImage media createdAt");
     if (!team) {
       return res.status(404).json({ message: "Team not found" });
     }

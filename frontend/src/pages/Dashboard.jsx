@@ -192,7 +192,7 @@ const Dashboard = () => {
             </button>
             
             <button 
-              onClick={() => handleMenuClick('/browse-matches')}
+              onClick={() => navigate('/browse-matches')}
               className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md hover:border-gray-200 transition-all duration-200 text-left group"
             >
               <div className="flex items-center">

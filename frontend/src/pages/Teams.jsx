@@ -18,7 +18,9 @@ import {
   Edit,
   Trash2,
   User,
-  Play
+  Play,
+  Star,
+  Phone
 } from 'lucide-react';
 import { 
   searchTeams, 
@@ -472,6 +474,11 @@ const Teams = () => {
 
   // Handle viewing user profile
   const handleViewUserProfile = (userToView) => {
+    console.log('Selected user data:', userToView);
+    console.log('User dob:', userToView.dob);
+    console.log('User createdAt:', userToView.createdAt);
+    console.log('User mobile:', userToView.mobile);
+    console.log('User location:', userToView.location);
     setSelectedUser(userToView);
     setShowUserProfile(true);
   };
@@ -1388,80 +1395,84 @@ const Teams = () => {
                   </div>
                   <div className="bg-green-50 rounded-lg p-4">
                     <div className="text-2xl font-bold text-green-600">
-                      {/* You can add team count or other stats here */}
-                      {new Date().getFullYear() - new Date(selectedUser.dob || new Date().getFullYear() - 25).getFullYear()}
+                      {(() => {
+                        if (selectedUser.age) return selectedUser.age;
+                        if (selectedUser.dob) {
+                          const birthDate = new Date(selectedUser.dob);
+                          const today = new Date();
+                          const age = today.getFullYear() - birthDate.getFullYear();
+                          const monthDiff = today.getMonth() - birthDate.getMonth();
+                          if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+                            return age - 1;
+                          }
+                          return age;
+                        }
+                        return 'N/A';
+                      })()}
                     </div>
                     <div className="text-sm text-gray-600">Age</div>
                   </div>
                   <div className="bg-purple-50 rounded-lg p-4">
                     <div className="text-2xl font-bold text-purple-600">
-                      {new Date(selectedUser.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                      {selectedUser.createdAt ? new Date(selectedUser.createdAt).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : 'Unknown'}
                     </div>
                     <div className="text-sm text-gray-600">Joined</div>
                   </div>
                 </div>
               </div>
 
-              {/* User Bio/Description */}
+              {/* User Information */}
               <div className="mb-6">
                 <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4">
                   <div className="space-y-3">
-                    <div className="flex items-center">
-                      <span className="font-semibold text-gray-900 text-lg">{selectedUser.name}</span>
-                      <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">Player</span>
+                    <div className="text-center mb-4">
+                      <span className="font-bold text-gray-900 text-xl">{selectedUser.name}</span>
+                      <span className="ml-3 bg-blue-100 text-blue-800 text-xs px-3 py-1 rounded-full">Player</span>
                     </div>
                     
                     {/* Contact Information */}
-                    <div className="space-y-2">
-                      <div className="flex items-center text-sm text-gray-600">
-                        <Mail className="h-4 w-4 mr-2 text-blue-500" />
-                        <span>{selectedUser.email}</span>
+                    <div className="space-y-3">
+                      <div className="flex items-center text-sm text-gray-700">
+                        <Mail className="h-4 w-4 mr-3 text-blue-500 flex-shrink-0" />
+                        <span className="font-medium break-all">{selectedUser.email}</span>
                       </div>
                       
                       {selectedUser.mobile && (
-                        <div className="flex items-center text-sm text-gray-600">
-                          <Phone className="h-4 w-4 mr-2 text-green-500" />
-                          <span>{selectedUser.mobile}</span>
+                        <div className="flex items-center text-sm text-gray-700">
+                          <Phone className="h-4 w-4 mr-3 text-green-500 flex-shrink-0" />
+                          <span className="font-medium">{selectedUser.mobile}</span>
                         </div>
                       )}
                       
                       {selectedUser.location && (
-                        <div className="flex items-center text-sm text-gray-600">
-                          <MapPin className="h-4 w-4 mr-2 text-red-500" />
-                          <span>{selectedUser.location}</span>
+                        <div className="flex items-center text-sm text-gray-700">
+                          <MapPin className="h-4 w-4 mr-3 text-red-500 flex-shrink-0" />
+                          <span className="font-medium">{selectedUser.location}</span>
                         </div>
                       )}
                       
                       {selectedUser.dob && (
-                        <div className="flex items-center text-sm text-gray-600">
-                          <Calendar className="h-4 w-4 mr-2 text-purple-500" />
-                          <span>Born {new Date(selectedUser.dob).toLocaleDateString('en-US', { 
+                        <div className="flex items-center text-sm text-gray-700">
+                          <Calendar className="h-4 w-4 mr-3 text-purple-500 flex-shrink-0" />
+                          <span className="font-medium">Born {new Date(selectedUser.dob).toLocaleDateString('en-US', { 
                             year: 'numeric', 
                             month: 'long', 
                             day: 'numeric' 
                           })}</span>
                         </div>
                       )}
-                    </div>
 
-                    {/* Social Links */}
-                    {selectedUser.instagramProfile && (
-                      <div className="pt-2 border-t border-gray-200">
-                        <a
-                          href={selectedUser.instagramProfile.startsWith('http') 
-                            ? selectedUser.instagramProfile 
-                            : `https://instagram.com/${selectedUser.instagramProfile}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center text-sm text-pink-600 hover:text-pink-800 transition-colors"
-                        >
-                          <svg className="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
-                          </svg>
-                          Follow on Instagram
-                        </a>
-                      </div>
-                    )}
+                      {/* Show when user joined */}
+                      {selectedUser.createdAt && (
+                        <div className="flex items-center text-sm text-gray-700">
+                          <User className="h-4 w-4 mr-3 text-blue-600 flex-shrink-0" />
+                          <span className="font-medium">Member since {new Date(selectedUser.createdAt).toLocaleDateString('en-US', { 
+                            year: 'numeric', 
+                            month: 'long'
+                          })}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

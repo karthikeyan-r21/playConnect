@@ -38,8 +38,8 @@ exports.createMatch = async (req, res) => {
     });
 
     const populatedMatch = await Match.findById(match._id)
-      .populate("createdBy", "name email")
-      .populate("participants", "name email");
+      .populate("createdBy", "name email mobile dob location profileImage media createdAt")
+      .populate("participants", "name email mobile dob location profileImage media createdAt");
 
     res.status(201).json({ msg: "Match created successfully", match: populatedMatch });
   } catch (err) {
@@ -64,8 +64,8 @@ exports.getMatches = async (req, res) => {
     }
 
     const matches = await Match.find(filter)
-      .populate("createdBy", "name email")
-      .populate("participants", "name email")
+      .populate("createdBy", "name email mobile dob location profileImage media createdAt")
+      .populate("participants", "name email mobile dob location profileImage media createdAt")
       .sort({ date: 1 });
 
     res.json({ matches });
@@ -80,8 +80,8 @@ exports.getMatches = async (req, res) => {
 exports.getMatch = async (req, res) => {
   try {
     const match = await Match.findById(req.params.id)
-      .populate("createdBy", "name email")
-      .populate("participants", "name email");
+      .populate("createdBy", "name email mobile dob location profileImage media createdAt")
+      .populate("participants", "name email mobile dob location profileImage media createdAt");
 
     if (!match) {
       return res.status(404).json({ msg: "Match not found" });
@@ -132,8 +132,8 @@ exports.updateMatch = async (req, res) => {
       req.params.id,
       updateData,
       { new: true }
-    ).populate("createdBy", "name email")
-     .populate("participants", "name email");
+    ).populate("createdBy", "name email mobile dob location profileImage media createdAt")
+     .populate("participants", "name email mobile dob location profileImage media createdAt");
 
     res.json({ msg: "Match updated successfully", match: updatedMatch });
   } catch (err) {
@@ -187,8 +187,8 @@ exports.joinMatch = async (req, res) => {
     await match.save();
 
     const updatedMatch = await Match.findById(req.params.id)
-      .populate("createdBy", "name email")
-      .populate("participants", "name email");
+      .populate("createdBy", "name email mobile dob location profileImage media createdAt")
+      .populate("participants", "name email mobile dob location profileImage media createdAt");
 
     res.json({ msg: "Successfully joined match", match: updatedMatch });
   } catch (err) {
@@ -219,8 +219,8 @@ exports.leaveMatch = async (req, res) => {
     await match.save();
 
     const updatedMatch = await Match.findById(req.params.id)
-      .populate("createdBy", "name email")
-      .populate("participants", "name email");
+      .populate("createdBy", "name email mobile dob location profileImage media createdAt")
+      .populate("participants", "name email mobile dob location profileImage media createdAt");
 
     res.json({ msg: "Successfully left match", match: updatedMatch });
   } catch (err) {
@@ -240,8 +240,8 @@ exports.getMyMatches = async (req, res) => {
         { participants: userId }
       ]
     })
-    .populate("createdBy", "name email")
-    .populate("participants", "name email")
+    .populate("createdBy", "name email mobile dob location profileImage media createdAt")
+    .populate("participants", "name email mobile dob location profileImage media createdAt")
     .sort({ date: 1 });
 
     res.json({ matches });
@@ -259,8 +259,8 @@ exports.getCreatedMatches = async (req, res) => {
     const matches = await Match.find({
       createdBy: userId
     })
-    .populate("createdBy", "name email")
-    .populate("participants", "name email")
+    .populate("createdBy", "name email mobile dob location profileImage media createdAt")
+    .populate("participants", "name email mobile dob location profileImage media createdAt")
     .sort({ date: 1 });
 
     res.json({ matches });
@@ -279,8 +279,8 @@ exports.getJoinedMatches = async (req, res) => {
       participants: userId,
       createdBy: { $ne: userId } // Exclude matches created by user
     })
-    .populate("createdBy", "name email")
-    .populate("participants", "name email")
+    .populate("createdBy", "name email mobile dob location profileImage media createdAt")
+    .populate("participants", "name email mobile dob location profileImage media createdAt")
     .sort({ date: 1 });
 
     res.json({ matches });
