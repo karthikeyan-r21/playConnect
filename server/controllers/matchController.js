@@ -176,7 +176,7 @@ exports.createMatch = async (req, res) => {
       gameType,
       date: matchDate,
       location,
-      maxPlayers: maxPlayers || 10,
+      maxPlayers: maxPlayers || 11,
       description: description || "",
       createdBy,
       participants: [createdBy], // Creator automatically joins

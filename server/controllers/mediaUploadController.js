@@ -9,7 +9,7 @@ exports.uploadUserMedia = async (req, res) => {
     const allowedTypes = ["image", "video"];
     const allowedImageExt = ["jpg", "jpeg", "png", "gif"];
     const allowedVideoExt = ["mp4", "mov", "avi", "webm"];
-    const maxFileSize = 50 * 1024 * 1024; // 10MB
+    const maxFileSize = 50 * 1024 * 1024; // 50MB
     const maxMediaCount = 10;
 
     if (!type || !allowedTypes.includes(type)) {
@@ -96,23 +96,7 @@ exports.getSingleMedia = async (req, res) => {
   }
 };
 
-exports.getSingleMedia = async (req, res) => {
-  try {
-    // Find user containing this mediaId
-    const user = await User.findOne({ "media._id": req.params.mediaId });
-    if (!user) {
-      return res.status(404).json({ msg: "Media not found" });
-    }
-    const media = user.media.id(req.params.mediaId);
-    if (!media) {
-      return res.status(404).json({ msg: "Media not found" });
-    }
-    res.json({ media });
-  } catch (err) {
-    console.error("Error fetching media:", err);
-    res.status(500).json({ msg: "Internal server error" });
-  }
-};
+
 
 // Delete media by mediaId
 exports.deleteMedia = async (req, res) => {

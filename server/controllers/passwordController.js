@@ -11,12 +11,9 @@ const generateOTP = () => {
 exports.sendOTP = async (req, res) => {
   try {
     console.log('Send OTP request body:', req.body);
-    
     let { email } = req.body;
-    
     // Trim whitespace from email
     if (email) email = email.trim();
-    
     if (!email) {
       return res.status(400).json({ msg: "Email is required" });
     }
