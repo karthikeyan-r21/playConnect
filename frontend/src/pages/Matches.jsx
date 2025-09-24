@@ -293,11 +293,24 @@ const Matches = () => {
     try {
       setSelectedMatch(match);
       setIsLoading(true);
-      const participantData = await matchAPI.getMatch(match._id);
-      setParticipants(participantData.participants || []);
+      setError(null); // Clear any previous errors
+      
+      console.log('Fetching participants for match:', match._id);
+      const response = await matchAPI.getMatch(match._id);
+      console.log('API Response:', response);
+      
+      // The backend returns { match } so we need to access response.match.participants
+      const matchData = response.match || response;
+      console.log('Match data:', matchData);
+      console.log('Participants:', matchData.participants);
+      
+      setParticipants(matchData.participants || []);
       setShowParticipants(true);
     } catch (error) {
-      setError(error.response?.data?.message || 'Failed to fetch participants');
+      const errorMessage = error.response?.data?.msg || error.response?.data?.message || 'Failed to fetch participants';
+      setError(errorMessage);
+      console.error('Error fetching participants:', error);
+      console.error('Error response:', error.response);
     } finally {
       setIsLoading(false);
     }
@@ -1017,7 +1030,25 @@ const Matches = () => {
                 </button>
               </div>
 
-              {participants.length === 0 ? (
+              {isLoading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
+                  <p className="text-gray-500">Loading participants...</p>
+                </div>
+              ) : error ? (
+                <div className="text-center py-8">
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <p className="text-red-600 font-medium">Error loading participants</p>
+                    <p className="text-red-500 text-sm mt-1">{error}</p>
+                    <button 
+                      onClick={() => handleViewParticipants(selectedMatch)}
+                      className="mt-3 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                </div>
+              ) : participants.length === 0 ? (
                 <div className="text-center py-8">
                   <Users className="h-12 w-12 text-gray-300 mx-auto mb-3" />
                   <p className="text-gray-500">No participants yet</p>
@@ -1026,13 +1057,13 @@ const Matches = () => {
               ) : (
                 <div className="space-y-4">
                   {participants.map((participant, index) => (
-                    <div key={participant.id} className="bg-gray-50 rounded-lg p-4">
+                    <div key={participant._id || participant.id || index} className="bg-gray-50 rounded-lg p-4">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center mb-2">
                             <User className="h-5 w-5 text-gray-400 mr-2" />
-                            <h4 className="font-medium text-gray-900">{participant.name}</h4>
-                            {index === 0 && (
+                            <h4 className="font-medium text-gray-900">{participant.name || 'Unknown User'}</h4>
+                            {participant._id === selectedMatch?.createdBy?._id && (
                               <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
                                 Creator
                               </span>
@@ -1047,12 +1078,12 @@ const Matches = () => {
                               <span>{participant.email}</span>
                             </div>
                             
-                            {participant.phone && participant.phone !== 'Not provided' && (
+                            {participant.mobile && participant.mobile !== 'Not provided' && (
                               <div className="flex items-center text-sm text-gray-600">
                                 <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                                 </svg>
-                                <span>{participant.phone}</span>
+                                <span>{participant.mobile}</span>
                               </div>
                             )}
                             

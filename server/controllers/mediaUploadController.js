@@ -1,76 +1,149 @@
 const User = require("../models/User");
 const cloudinary = require("../config/cloudinary");
 
-const uploadToCloudinary = (fileBuffer, resourceType = 'auto') => {
-  return new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(
-      { 
-        folder: "playconnect_media",
-        resource_type: resourceType,
-        timeout: 300000, // 5 minutes timeout
-        chunk_size: 6000000, // 6MB chunks for large files
-        eager_async: true, // Process transformations asynchronously
-        format: resourceType === 'video' ? 'mp4' : undefined // Ensure consistent video format
-      },
-      (err, result) => {
-        if (err) {
-          console.error('Cloudinary upload error:', err);
-          reject(err);
-        } else {
-          console.log('Cloudinary upload success:', result.secure_url);
-          resolve(result.secure_url);
-        }
-      }
-    );
-    stream.end(fileBuffer);
-  });
-};
-
-exports.uploadMedia = async (req, res) => {
+// Upload media for user profile
+exports.uploadUserMedia = async (req, res) => {
   try {
-    const { type } = req.body; // "image" or "video"
-    if (!type || !["image", "video"].includes(type)) {
+    const { type, isProfileImage } = req.body; // "image" or "video", optional isProfileImage
+    // Allowed types and extensions
+    const allowedTypes = ["image", "video"];
+    const allowedImageExt = ["jpg", "jpeg", "png", "gif"];
+    const allowedVideoExt = ["mp4", "mov", "avi", "webm"];
+    const maxFileSize = 50 * 1024 * 1024; // 10MB
+    const maxMediaCount = 10;
+
+    if (!type || !allowedTypes.includes(type)) {
       return res.status(400).json({ msg: "Invalid media type" });
     }
-
     if (!req.file) {
       return res.status(400).json({ msg: "No file uploaded" });
     }
-
-    // Check file size limits
-    const maxSize = type === "video" ? 25 * 1024 * 1024 : 5 * 1024 * 1024;
-    if (req.file.size > maxSize) {
-      return res.status(400).json({ 
-        msg: `File size too large. Maximum ${type === "video" ? "25MB" : "5MB"} allowed.` 
-      });
+    // File size check
+    if (req.file.size > maxFileSize) {
+      return res.status(400).json({ msg: "File too large. Max 10MB allowed." });
     }
-
-    // Determine resource type for Cloudinary
-    const resourceType = type === "video" ? "video" : "image";
-    
-    const mediaUrl = await uploadToCloudinary(req.file.buffer, resourceType);
+    // Extension check
+    const ext = req.file.originalname.split(".").pop().toLowerCase();
+    if (type === "image" && !allowedImageExt.includes(ext)) {
+      return res.status(400).json({ msg: "Invalid image file type" });
+    }
+    if (type === "video" && !allowedVideoExt.includes(ext)) {
+      return res.status(400).json({ msg: "Invalid video file type" });
+    }
 
     const user = await User.findById(req.user.id);
     if (!user) {
       return res.status(404).json({ msg: "User not found" });
     }
+    // Max media count check
+    if (user.media.length >= maxMediaCount) {
+      return res.status(400).json({ msg: `Max ${maxMediaCount} media uploads allowed.` });
+    }
 
-    user.media.push({ type, url: mediaUrl });
+    const result = await cloudinary.uploader.upload(req.file.path, {
+      resource_type: type === "video" ? "video" : "image",
+      folder: "playconnect_media",
+    });
+
+    // Add to media array
+    user.media.push({ type, url: result.secure_url });
+
+    // Optionally set as profile image
+    if (isProfileImage === "true" || isProfileImage === true) {
+      user.profileImage = result.secure_url;
+    }
+
     await user.save();
 
-    res.json({ msg: "Media uploaded successfully", media: user.media });
+    // Clean up temporary file
+    const fs = require('fs');
+    if (req.file && req.file.path) {
+      fs.unlink(req.file.path, (err) => {
+        if (err) console.error('Error deleting temp file:', err);
+      });
+    }
+
+    res.json({ 
+      msg: "Media uploaded successfully", 
+      media: user.media, 
+      profileImage: user.profileImage,
+      uploadedMedia: mediaObject
+    });
   } catch (err) {
     console.error("Error uploading media:", err);
-    
-    // Handle specific multer errors
-    if (err.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ msg: "File size too large" });
+    res.status(500).json({ msg: "Internal server error" });
+  }
+};
+
+
+// View all media for a user
+exports.getUserMedia = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId);
+    if (!user) {
+      return res.status(404).json({ msg: "User not found" });
     }
-    
-    if (err.message && err.message.includes('Invalid file type')) {
-      return res.status(400).json({ msg: err.message });
+    res.json({ media: user.media });
+  } catch (err) {
+    console.error("Error fetching user media:", err);
+    res.status(500).json({ msg: "Internal server error" });
+  }
+};
+
+// View single media by mediaId
+exports.getSingleMedia = async (req, res) => {
+  try {
+    // Find user containing this mediaId
+    const user = await User.findOne({ "media._id": req.params.mediaId });
+    if (!user) {
+      return res.status(404).json({ msg: "Media not found" });
     }
-    
+    const media = user.media.id(req.params.mediaId);
+    if (!media) {
+      return res.status(404).json({ msg: "Media not found" });
+    }
+    res.json({ media });
+  } catch (err) {
+    console.error("Error fetching media:", err);
+    res.status(500).json({ msg: "Internal server error" });
+  }
+};
+
+exports.getSingleMedia = async (req, res) => {
+  try {
+    // Find user containing this mediaId
+    const user = await User.findOne({ "media._id": req.params.mediaId });
+    if (!user) {
+      return res.status(404).json({ msg: "Media not found" });
+    }
+    const media = user.media.id(req.params.mediaId);
+    if (!media) {
+      return res.status(404).json({ msg: "Media not found" });
+    }
+    res.json({ media });
+  } catch (err) {
+    console.error("Error fetching media:", err);
+    res.status(500).json({ msg: "Internal server error" });
+  }
+};
+
+// Delete media by mediaId
+exports.deleteMedia = async (req, res) => {
+  try {
+    const user = await User.findOne({ "media._id": req.params.mediaId });
+    if (!user) {
+      return res.status(404).json({ msg: "Media not found" });
+    }
+    const media = user.media.id(req.params.mediaId);
+    if (!media) {
+      return res.status(404).json({ msg: "Media not found" });
+    }
+    // Optionally: delete from Cloudinary (if you store public_id)
+    user.media.pull(req.params.mediaId);
+    await user.save();
+    res.json({ msg: "Media deleted successfully" });
+  } catch (err) {
+    console.error("Error deleting media:", err);
     res.status(500).json({ msg: "Internal server error" });
   }
 };

@@ -20,7 +20,12 @@ import {
   User,
   Play,
   Star,
-  Phone
+  Phone,
+  Eye,
+  Volume2,
+  VolumeX,
+  Pause,
+  RotateCcw
 } from 'lucide-react';
 import { 
   searchTeams, 
@@ -40,6 +45,146 @@ import {
   deleteTeam
 } from '../services/teamAPI';
 import { useAuth } from '../context/AuthContext';
+
+// Video Player Component for media viewing
+const VideoPlayer = ({ videoUrl, onError }) => {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [hasError, setHasError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const videoRef = React.useRef(null);
+
+  // Optimize Cloudinary video URL for browser compatibility
+  const optimizeVideoUrl = (url) => {
+    if (!url || !url.includes('cloudinary.com')) {
+      return url;
+    }
+    
+    try {
+      const baseUrl = url.split('/upload/')[0];
+      const fileName = url.split('/upload/')[1];
+      
+      // Add transformation parameters for browser compatibility
+      return `${baseUrl}/upload/f_mp4,vc_h264,ac_aac,q_auto:good,fl_progressive/${fileName}`;
+    } catch (error) {
+      console.error('Error optimizing video URL:', error);
+      return url;
+    }
+  };
+
+  const handlePlayPause = () => {
+    if (videoRef.current) {
+      if (isPlaying) {
+        videoRef.current.pause();
+      } else {
+        videoRef.current.play();
+      }
+      setIsPlaying(!isPlaying);
+    }
+  };
+
+  const handleMuteToggle = () => {
+    if (videoRef.current) {
+      videoRef.current.muted = !isMuted;
+      setIsMuted(!isMuted);
+    }
+  };
+
+  const handleVideoError = (e) => {
+    console.error('Video playback error:', e);
+    setHasError(true);
+    setIsLoading(false);
+    if (onError) {
+      onError('Unable to play video. The video format may not be supported or the file may be corrupted.');
+    }
+  };
+
+  const handleLoadStart = () => {
+    setIsLoading(true);
+    setHasError(false);
+  };
+
+  const handleCanPlay = () => {
+    setIsLoading(false);
+  };
+
+  const optimizedUrl = optimizeVideoUrl(videoUrl);
+
+  return (
+    <div className="relative bg-black">
+      {isLoading && (
+        <div className="absolute inset-0 bg-gray-900 flex items-center justify-center z-10">
+          <div className="text-center text-white">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-2"></div>
+            <p className="text-sm">Loading video...</p>
+          </div>
+        </div>
+      )}
+      
+      {hasError ? (
+        <div className="aspect-video bg-gray-100 flex items-center justify-center">
+          <div className="text-center p-8">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <p className="text-red-600 font-medium">Unable to play video</p>
+              <p className="text-red-500 text-sm mt-1">The video format may not be supported</p>
+              <a 
+                href={videoUrl} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="inline-block mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+              >
+                View Original Video
+              </a>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
+          <video
+            ref={videoRef}
+            controls
+            preload="metadata"
+            onLoadStart={handleLoadStart}
+            onCanPlay={handleCanPlay}
+            onError={handleVideoError}
+            onPlay={() => setIsPlaying(true)}
+            onPause={() => setIsPlaying(false)}
+            className="w-full max-h-[80vh] object-contain"
+            style={{ maxHeight: '80vh' }}
+          >
+            <source src={optimizedUrl} type="video/mp4" />
+            <source src={videoUrl} type="video/webm" />
+            <source src={videoUrl} type="video/ogg" />
+            Your browser does not support the video tag.
+          </video>
+
+          {/* Custom Controls Overlay */}
+          <div className="absolute bottom-4 left-4 right-4 bg-black bg-opacity-50 rounded-lg p-3 flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={handlePlayPause}
+                className="text-white hover:text-gray-300 transition-colors"
+              >
+                {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
+              </button>
+              
+              <button
+                onClick={handleMuteToggle}
+                className="text-white hover:text-gray-300 transition-colors"
+              >
+                {isMuted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+              </button>
+            </div>
+
+            <div className="text-white text-sm">
+              Click and drag to seek • Use browser controls for full features
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
 
 const Teams = () => {
   const { user } = useAuth();
@@ -65,6 +210,10 @@ const Teams = () => {
   // Profile modal states
   const [showUserProfile, setShowUserProfile] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
+  const [showMediaModal, setShowMediaModal] = useState(false);
+  const [selectedMedia, setSelectedMedia] = useState(null);
+  const [mediaLoading, setMediaLoading] = useState(false);
+  const [mediaError, setMediaError] = useState('');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -486,6 +635,38 @@ const Teams = () => {
   const closeUserProfile = () => {
     setShowUserProfile(false);
     setSelectedUser(null);
+    setShowMediaModal(false);
+    setSelectedMedia(null);
+    setMediaError('');
+  };
+
+  // Handle media viewing
+  const handleViewMedia = (mediaItem) => {
+    setSelectedMedia(mediaItem);
+    setShowMediaModal(true);
+    setMediaError('');
+  };
+
+  const closeMediaModal = () => {
+    setShowMediaModal(false);
+    setSelectedMedia(null);
+    setMediaError('');
+  };
+
+  // Helper function for video thumbnail optimization
+  const optimizeVideoUrl = (url) => {
+    if (!url || !url.includes('cloudinary.com')) {
+      return url;
+    }
+    
+    try {
+      const baseUrl = url.split('/upload/')[0];
+      const fileName = url.split('/upload/')[1];
+      return `${baseUrl}/upload/f_mp4,vc_h264,ac_aac,q_auto:good,fl_progressive/${fileName}`;
+    } catch (error) {
+      console.error('Error optimizing video URL:', error);
+      return url;
+    }
   };
 
   const hasUserRequestedToJoin = (team) => {
@@ -1486,25 +1667,57 @@ const Teams = () => {
                   </h4>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                     {selectedUser.media.slice(0, 6).map((mediaItem, index) => (
-                      <div key={index} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden">
+                      <div 
+                        key={index} 
+                        className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer group hover:shadow-lg transition-all duration-200"
+                        onClick={() => handleViewMedia(mediaItem)}
+                      >
                         {mediaItem.type === 'image' ? (
-                          <img
-                            src={mediaItem.url}
-                            alt={`Media ${index + 1}`}
-                            className="w-full h-full object-cover"
-                          />
+                          <>
+                            <img
+                              src={mediaItem.url}
+                              alt={`Media ${index + 1}`}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                            />
+                            <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-opacity duration-200 flex items-center justify-center">
+                              <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                <div className="bg-white rounded-full p-2">
+                                  <Eye className="h-4 w-4 text-gray-700" />
+                                </div>
+                              </div>
+                            </div>
+                          </>
                         ) : (
-                          <div className="w-full h-full bg-gray-200 flex items-center justify-center">
-                            <Play className="h-8 w-8 text-gray-500" />
-                          </div>
+                          <>
+                            {/* Video thumbnail */}
+                            <video
+                              src={optimizeVideoUrl(mediaItem.url)}
+                              className="w-full h-full object-cover"
+                              muted
+                              preload="metadata"
+                            />
+                            <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center">
+                              <div className="bg-white bg-opacity-90 rounded-full p-3 group-hover:bg-opacity-100 group-hover:scale-110 transition-all duration-200">
+                                <Play className="h-6 w-6 text-gray-700 fill-current" />
+                              </div>
+                            </div>
+                            <div className="absolute bottom-2 left-2">
+                              <span className="bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
+                                VIDEO
+                              </span>
+                            </div>
+                          </>
                         )}
                       </div>
                     ))}
                   </div>
                   {selectedUser.media.length > 6 && (
-                    <p className="text-sm text-gray-500 mt-2 text-center">
-                      +{selectedUser.media.length - 6} more items
-                    </p>
+                    <button
+                      onClick={() => {/* TODO: Show all media */}}
+                      className="text-sm text-blue-600 hover:text-blue-800 mt-3 block mx-auto underline"
+                    >
+                      View all {selectedUser.media.length} items
+                    </button>
                   )}
                 </div>
               )}
@@ -1518,6 +1731,72 @@ const Teams = () => {
                   Close
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Media Viewing Modal */}
+      {showMediaModal && selectedMedia && (
+        <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4">
+          <div className="relative max-w-4xl w-full max-h-[90vh] bg-white rounded-lg overflow-hidden">
+            {/* Modal Header */}
+            <div className="absolute top-0 left-0 right-0 bg-black bg-opacity-50 z-10 p-4 flex items-center justify-between">
+              <div className="text-white">
+                <h3 className="font-semibold">{selectedUser?.name}'s {selectedMedia.type}</h3>
+                <p className="text-sm text-gray-300">Portfolio Media</p>
+              </div>
+              <button
+                onClick={closeMediaModal}
+                className="text-white hover:text-gray-300 transition-colors bg-black bg-opacity-30 rounded-full p-2"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            {/* Media Content */}
+            <div className="relative">
+              {selectedMedia.type === 'image' ? (
+                <img
+                  src={selectedMedia.url}
+                  alt="Portfolio Image"
+                  className="w-full max-h-[80vh] object-contain"
+                  onError={() => setMediaError('Failed to load image')}
+                />
+              ) : (
+                <VideoPlayer 
+                  videoUrl={selectedMedia.url}
+                  onError={(error) => setMediaError(error)}
+                />
+              )}
+
+              {/* Error State */}
+              {mediaError && (
+                <div className="absolute inset-0 bg-gray-100 flex items-center justify-center">
+                  <div className="text-center p-8">
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <p className="text-red-600 font-medium">Failed to load media</p>
+                      <p className="text-red-500 text-sm mt-1">{mediaError}</p>
+                      <div className="mt-3 space-x-2">
+                        <button 
+                          onClick={() => setMediaError('')}
+                          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm"
+                        >
+                          Retry
+                        </button>
+                        <a 
+                          href={selectedMedia.url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                        >
+                          Open Original
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
