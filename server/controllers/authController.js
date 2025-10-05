@@ -24,14 +24,23 @@ exports.register = async (req, res) => {
     console.log('Content-Type:', req.headers['content-type']);
     
     // Fix: Handle potential trailing spaces in form field names
-    const name = req.body.name || req.body['name '];
-    const dob = req.body.dob || req.body['dob '];
-    const location = req.body.location || req.body['location '];
-    const email = req.body.email || req.body['email '];
-    const mobile = req.body.mobile || req.body['mobile '];
-    const password = req.body.password || req.body['password '];
+  const name = req.body.name || req.body['name '];
+  const dob = req.body.dob || req.body['dob '];
+  const location = req.body.location || req.body['location '];
+  let geoLocation = req.body.geoLocation || req.body['geoLocation'] || null; // optional GeoJSON
+  // If geoLocation is a JSON string (multipart/form-data), try parsing
+  if (geoLocation && typeof geoLocation === 'string') {
+    try {
+      geoLocation = JSON.parse(geoLocation);
+    } catch (e) {
+      // leave as string; will be rejected by later validation
+    }
+  }
+  const email = req.body.email || req.body['email '];
+  const mobile = req.body.mobile || req.body['mobile '];
+  const password = req.body.password || req.body['password '];
     
-    if (!name || !dob || !location || !email || !mobile || !password) {
+    if (!name || !dob || !email || !mobile || !password) {
       console.log('Missing fields check:');
       console.log('name:', name);
       console.log('dob:', dob);  
@@ -52,9 +61,18 @@ exports.register = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user = await User.create({
-      name, dob, location, email, mobile, password: hashedPassword, profileImage: imageUrl
-    });
+    const userData = { name, dob, location, email, mobile, password: hashedPassword, profileImage: imageUrl };
+
+    // If geoLocation provided, validate and attach as GeoJSON
+    if (geoLocation && typeof geoLocation === 'object' && Array.isArray(geoLocation.coordinates)) {
+      const [lng, lat] = geoLocation.coordinates.map(Number);
+      if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+        return res.status(400).json({ msg: 'Invalid geoLocation coordinates' });
+      }
+      userData.geoLocation = { type: 'Point', coordinates: [lng, lat] };
+    }
+
+    const user = await User.create(userData);
 
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "50d" });
     res.status(201).json({ token, user: { id: user._id, name: user.name, email, profileImage: user.profileImage } });

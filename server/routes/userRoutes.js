@@ -10,6 +10,9 @@ router.get("/profile", auth, userController.getProfile);
 // Update current user's profile
 router.put("/updateProfile", auth, userController.updateProfile);
 
+// Search users near a given location within a radius
+router.get('/search-nearby', userController.searchNearbyUsers);
+
 router.post("/uploadMedia", auth, upload.single("file"), userController.uploadMedia);
 
 module.exports = router;

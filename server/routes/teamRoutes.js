@@ -27,7 +27,10 @@ router.get("/search",auth, teamController.searchTeams);
 router.get("/user/:userId", teamController.getUserTeams);
 
 // Get details of a specific team
-router.get("/:teamId", auth, teamController.getTeamDetails);
+ router.get("/search-nearby", teamController.searchNearbyTeams);
+ 
+ // Get details of a specific team
+ router.get("/:teamId", auth, teamController.getTeamDetails);
 
 // Leave a team (member only)
 router.post("/:teamId/leave", auth, teamController.leaveTeam);
