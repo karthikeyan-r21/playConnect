@@ -12,7 +12,8 @@ const userSchema = new mongoose.Schema({
     {
       type: { type: String, enum: ["image", "video"] },
       url: { type: String, required: true },
-      uploadedAt: { type: Date, default: Date.now },
+      filename: { type: String },
+      uploadDate: { type: Date, default: Date.now },
     },
   ],
 }, { timestamps: true });

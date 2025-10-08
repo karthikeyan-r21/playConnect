@@ -2,13 +2,14 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 
-// Create uploads directory if it doesn't exist
+// Create uploads directory if it doesn't exist (for fallback disk storage)
 const uploadDir = path.join(__dirname, '../uploads');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-const storage = multer.diskStorage({
+// Disk storage for files that need to be saved locally
+const diskStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, uploadDir);
   },
@@ -19,10 +20,13 @@ const storage = multer.diskStorage({
   }
 });
 
+// Memory storage for direct upload to Cloudinary (like profile images and media)
+const memoryStorage = multer.memoryStorage();
+
 // Create different upload configurations for different use cases
-const createUpload = (fileSize, fileFilter) => {
+const createUpload = (fileSize, fileFilter, useMemory = false) => {
   return multer({ 
-    storage,
+    storage: useMemory ? memoryStorage : diskStorage,
     limits: {
       fileSize: fileSize
     },
@@ -42,11 +46,11 @@ const mediaFileFilter = (req, file, cb) => {
   }
 };
 
-// Default upload (for profile pictures - 5MB limit)
-const upload = createUpload(5 * 1024 * 1024);
+// Default upload (for profile pictures - 5MB limit, memory storage)
+const upload = createUpload(5 * 1024 * 1024, null, true);
 
-// Media upload (for talent showcase - 50MB limit for videos)
-const mediaUpload = createUpload(50 * 1024 * 1024, mediaFileFilter);
+// Media upload (for talent showcase - 100MB limit for videos, memory storage)
+const mediaUpload = createUpload(100 * 1024 * 1024, mediaFileFilter, true);
 
 // Video-specific upload with higher limit
 const videoUpload = createUpload(100 * 1024 * 1024, (req, file, cb) => {

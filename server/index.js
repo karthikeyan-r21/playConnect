@@ -16,7 +16,10 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000'],
+  credentials: true
+}));
 app.use(express.json({ limit: '30mb' })); // Increase JSON limit
 app.use(express.urlencoded({ extended: true, limit: '30mb' })); // Increase URL encoded limit
 
@@ -33,12 +36,44 @@ app.use("/api/media", require("./routes/mediaRoutes")); // Media routes enabled
 
 app.use("/api/notifications", require("./routes/notificationRoutes"));
 
+// Error handling middleware for multer errors
+app.use((error, req, res, next) => {
+  console.error('Server error:', error);
+  
+  if (error.code === 'LIMIT_FILE_SIZE') {
+    return res.status(413).json({ 
+      msg: 'File too large. Maximum size is 50MB for videos and 5MB for images.' 
+    });
+  }
+  
+  if (error.code === 'LIMIT_FILE_COUNT') {
+    return res.status(400).json({ 
+      msg: 'Too many files. Upload one file at a time.' 
+    });
+  }
+  
+  if (error.code === 'LIMIT_UNEXPECTED_FILE') {
+    return res.status(400).json({ 
+      msg: 'Unexpected file field. Use "media" as the field name.' 
+    });
+  }
+  
+  if (error.message && error.message.includes('Invalid file type')) {
+    return res.status(400).json({ 
+      msg: error.message 
+    });
+  }
+  
+  // Generic server error
+  res.status(500).json({ 
+    msg: 'Server error occurred', 
+    error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+  });
+});
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
-
-
-  
 //Media upload testing pending
 //Profile update testing pending
  

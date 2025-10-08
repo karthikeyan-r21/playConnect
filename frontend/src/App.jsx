@@ -11,6 +11,9 @@ import Matches from './pages/Matches';
 import BrowseMatches from './pages/BrowseMatches';
 import ScheduledMatches from './pages/ScheduledMatches';
 import Notifications from './pages/Notifications';
+import TalentShowcase from './pages/TalentShowcase';
+import Profile from './pages/Profile';
+import EditProfile from './pages/EditProfile';
 import './App.css';
 
 // Simple test component to verify React is working
@@ -124,6 +127,24 @@ const AppContent = () => {
       <Route path="/notifications" element={
         <ProtectedRoute>
           <Notifications />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/talent-showcase" element={
+        <ProtectedRoute>
+          <TalentShowcase />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/profile" element={
+        <ProtectedRoute>
+          <Profile />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/edit-profile" element={
+        <ProtectedRoute>
+          <EditProfile />
         </ProtectedRoute>
       } />
 

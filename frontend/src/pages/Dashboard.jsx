@@ -139,11 +139,11 @@ const Dashboard = () => {
         }
       `}</style>
       
-      <div className="min-h-screen bg-gray-50 flex">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex">
       {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 transition-transform duration-300 ease-in-out lg:static lg:inset-0 flex flex-col`}>
+      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-gradient-to-b from-white/95 via-blue-50/90 to-purple-50/95 backdrop-blur-md shadow-2xl border-r border-white/30 transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 transition-transform duration-300 ease-in-out lg:static lg:inset-0 flex flex-col`}>
         {/* Profile Section */}
-        <div className="p-6 border-b border-gray-200">
+        <div className="p-6 border-b border-white/40 bg-gradient-to-r from-white/20 to-blue-50/30">
           <div className="flex items-center justify-between mb-4">
             {/* <div className="flex items-center">
               <Play className="h-6 w-6 text-blue-600" />
@@ -164,14 +164,14 @@ const Dashboard = () => {
                 <img
                   src={user.profileImage}
                   alt="Profile"
-                  className="w-20 h-20 rounded-full object-cover border-4 border-blue-100"
+                  className="w-20 h-20 rounded-full object-cover border-4 border-white/50 shadow-lg"
                 />
               ) : (
-                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center border-4 border-blue-100">
-                  <User className="h-8 w-8 text-white" />
+                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center border-4 border-white/50 shadow-lg">
+                  <User className="h-8 w-8 text-white drop-shadow-sm" />
                 </div>
               )}
-              <button className="absolute -bottom-1 -right-1 bg-blue-600 text-white rounded-full p-1.5 hover:bg-blue-700 transition-colors">
+              <button className="absolute -bottom-1 -right-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full p-1.5 hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg">
                 <Edit3 className="h-3 w-3" />
               </button>
             </div>
@@ -183,18 +183,26 @@ const Dashboard = () => {
                 {user.location}
               </p>
             )}
+            
+            {/* View Profile Button */}
+            <button 
+              onClick={() => handleMenuClick('/profile')}
+              className="mt-3 w-full px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg"
+            >
+              View Profile
+            </button>
           </div>
         </div>
 
         {/* Navigation Menu */}
-        <nav className="p-4 flex-1 overflow-y-auto">
+        <nav className="p-4 flex-1 overflow-y-auto bg-gradient-to-b from-transparent to-white/10">
           <ul className="space-y-2">
             {menuItems.map((item, index) => (
               <li key={index}>
                 <button 
                   onClick={() => handleMenuClick(item.route)}
-                  className={`w-full flex items-center px-4 py-3 text-left text-gray-700 hover:bg-gray-100 rounded-lg transition-colors group ${
-                    location.pathname === item.route ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-600' : ''
+                  className={`w-full flex items-center px-4 py-3 text-left text-gray-700 hover:bg-white/40 hover:backdrop-blur-sm rounded-lg transition-all duration-200 group ${
+                    location.pathname === item.route ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-blue-700 border-r-2 border-blue-600 shadow-lg' : ''
                   }`}
                 >
                   <item.icon className={`h-5 w-5 mr-3 ${item.color} group-hover:scale-110 transition-transform ${
@@ -208,10 +216,10 @@ const Dashboard = () => {
         </nav>
 
         {/* Logout Button */}
-        <div className="p-4 border-t border-gray-200">
+        <div className="p-4 border-t border-white/40 bg-gradient-to-r from-white/20 to-red-50/30">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            className="w-full flex items-center px-4 py-3 text-red-600 hover:bg-red-100/60 hover:backdrop-blur-sm rounded-lg transition-all duration-200 shadow-sm"
           >
             <LogOut className="h-5 w-5 mr-3" />
             <span className="font-medium">Logout</span>
@@ -230,7 +238,7 @@ const Dashboard = () => {
       {/* Main Content */}
       <div className="flex-1 lg:ml-0">
         {/* Mobile Header */}
-        <header className="lg:hidden bg-white shadow-sm px-4 py-3 flex-shrink-0">
+        <header className="lg:hidden bg-white/80 backdrop-blur-md shadow-lg px-4 py-3 flex-shrink-0">
           <div className="flex items-center justify-between">
             <button
               onClick={() => setSidebarOpen(true)}
@@ -258,7 +266,7 @@ const Dashboard = () => {
         </header>
 
         {/* Desktop Header */}
-        <header className="hidden lg:block bg-white shadow-sm border-b border-gray-200">
+        <header className="hidden lg:block bg-white/80 backdrop-blur-md shadow-lg border-b border-white/30">
           <div className="px-6 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
@@ -287,7 +295,7 @@ const Dashboard = () => {
         {/* Main Content Area */}
         <main className="p-6 lg:p-8">
           {/* Welcome Message */}
-          <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 text-white mb-8">
+          <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-2xl p-8 text-white mb-8 shadow-xl border border-white/20">
             <h1 className="text-3xl lg:text-4xl font-bold mb-2">
               Welcome back, {user?.name?.split(' ')[0] || 'Player'}! 🎮
             </h1>
@@ -298,43 +306,42 @@ const Dashboard = () => {
 
           {/* Quick Stats */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <button className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md hover:border-gray-200 transition-all duration-200 text-left group">
+            <button className="bg-white/70 backdrop-blur-sm rounded-xl shadow-lg p-6 border border-white/30 hover:shadow-xl hover:border-white/50 hover:bg-white/80 transition-all duration-200 text-left group">
               <div className="flex items-center">
-                <div className="p-3 bg-yellow-100 rounded-lg group-hover:bg-yellow-200 transition-colors">
-                  <Trophy className="h-6 w-6 text-yellow-600" />
+                <div className="p-3 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-lg group-hover:from-yellow-500 group-hover:to-orange-600 transition-all duration-200 shadow-lg">
+                  <Trophy className="h-6 w-6 text-white drop-shadow-sm" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">Games Won</p>
-                  <p className="text-2xl font-bold text-gray-900">0</p>
+                  <p className="text-sm font-medium text-gray-600">Games Won</p>
+                  <p className="text-2xl font-bold text-gray-800">0</p>
                 </div>
               </div>
             </button>
             
             <button 
               onClick={() => handleMenuClick('/teams')}
-              className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md hover:border-gray-200 transition-all duration-200 text-left group"
+              className="bg-white/70 backdrop-blur-sm rounded-xl shadow-lg p-6 border border-white/30 hover:shadow-xl hover:border-white/50 hover:bg-white/80 transition-all duration-200 text-left group"
             >
               <div className="flex items-center">
-                <div className="p-3 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors">
-                  <Users className="h-6 w-6 text-blue-600" />
+                <div className="p-3 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg group-hover:from-blue-600 group-hover:to-indigo-700 transition-all duration-200 shadow-lg">
+                  <Users className="h-6 w-6 text-white drop-shadow-sm" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">Teams</p>
-                  
+                  <p className="text-sm font-medium text-gray-600">Teams</p>
                 </div>
               </div>
             </button>
             
             <button 
               onClick={() => navigate('/browse-matches')}
-              className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 hover:shadow-md hover:border-gray-200 transition-all duration-200 text-left group"
+              className="bg-white/70 backdrop-blur-sm rounded-xl shadow-lg p-6 border border-white/30 hover:shadow-xl hover:border-white/50 hover:bg-white/80 transition-all duration-200 text-left group"
             >
               <div className="flex items-center">
-                <div className="p-3 bg-green-100 rounded-lg group-hover:bg-green-200 transition-colors">
-                  <Calendar className="h-6 w-6 text-green-600" />
+                <div className="p-3 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg group-hover:from-green-600 group-hover:to-emerald-700 transition-all duration-200 shadow-lg">
+                  <Calendar className="h-6 w-6 text-white drop-shadow-sm" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-sm font-medium text-gray-500">Browse Matches</p>
+                  <p className="text-sm font-medium text-gray-600">Browse Matches</p>
                  
                 </div>
               </div>
@@ -342,18 +349,18 @@ const Dashboard = () => {
           </div>
 
           {/* Talent Showcase Section */}
-          <div className="bg-white rounded-xl shadow-sm p-8 border border-gray-100 mb-8">
+          <div className="bg-white/70 backdrop-blur-sm rounded-xl shadow-lg p-8 border border-white/30 mb-8">
             <div className="text-center">
-              <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Video className="h-8 w-8 text-white" />
+              <div className="w-16 h-16 bg-gradient-to-br from-purple-500 via-pink-500 to-red-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+                <Video className="h-8 w-8 text-white drop-shadow-sm" />
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">Showcase Your Talents</h3>
               <p className="text-gray-500 mb-4">
                 Upload videos and images to show off your skills and connect with other players.
               </p>
               <button 
-                onClick={() => handleMenuClick('/talent-showcase')}
-                className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200 font-medium"
+                onClick={() => navigate('/talent-showcase')}
+                className="bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 text-white px-6 py-3 rounded-lg hover:from-purple-700 hover:via-pink-700 hover:to-red-700 transition-all duration-200 font-medium shadow-lg"
               >
                 Upload Your Talent
               </button>
@@ -362,12 +369,12 @@ const Dashboard = () => {
 
           {/* Additional Content for Testing Scroll */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div className="bg-white/70 backdrop-blur-sm rounded-xl shadow-lg p-6 border border-white/30">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
               <div className="space-y-3">
                 <button 
                   onClick={() => handleMenuClick('/matches')}
-                  className="w-full flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-left"
+                  className="w-full flex items-center p-3 bg-white/50 rounded-lg hover:bg-white/70 transition-colors text-left"
                 >
                   <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
                     <Users className="h-4 w-4 text-blue-600" />
@@ -379,7 +386,7 @@ const Dashboard = () => {
                 </button>
                 <button 
                   onClick={() => handleMenuClick('/scheduled-matches')}
-                  className="w-full flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-left"
+                  className="w-full flex items-center p-3 bg-white/50 rounded-lg hover:bg-white/70 transition-colors text-left"
                 >
                   <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mr-3">
                     <Calendar className="h-4 w-4 text-green-600" />
@@ -391,7 +398,7 @@ const Dashboard = () => {
                 </button>
                 <button 
                   onClick={() => handleMenuClick('/venues')}
-                  className="w-full flex items-center p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-left"
+                  className="w-full flex items-center p-3 bg-white/50 rounded-lg hover:bg-white/70 transition-colors text-left"
                 >
                   <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center mr-3">
                     <MapPin className="h-4 w-4 text-purple-600" />
@@ -404,7 +411,7 @@ const Dashboard = () => {
               </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div className="bg-white/70 backdrop-blur-sm rounded-xl shadow-lg p-6 border border-white/30">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Tips</h3>
               <div className="space-y-4">
                 <div className="p-4 bg-blue-50 rounded-lg border-l-4 border-blue-500">
@@ -424,11 +431,11 @@ const Dashboard = () => {
           </div>
 
           {/* More Content Sections for Testing */}
-          <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100 mb-8">
+          <div className="bg-white/70 backdrop-blur-sm rounded-xl shadow-lg p-6 border border-white/30 mb-8">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Upcoming Events</h3>
             <div className="space-y-4">
               {[1, 2, 3, 4, 5].map((item) => (
-                <div key={item} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                <div key={item} className="flex items-center justify-between p-4 border border-white/40 bg-white/30 rounded-lg hover:bg-white/50 transition-colors">
                   <div className="flex items-center">
                     <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center mr-4">
                       <Trophy className="h-5 w-5 text-white" />
@@ -451,6 +458,8 @@ const Dashboard = () => {
           <div className="h-20"></div>
         </main>
       </div>
+
+
     </div>
     </>
   );
