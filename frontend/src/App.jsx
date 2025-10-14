@@ -1,15 +1,29 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { NotificationProvider } from './context/NotificationContext';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import ForgotPassword from './pages/ForgotPassword';
 import Dashboard from './pages/Dashboard';
+import Teams from './pages/Teams';
 import Matches from './pages/Matches';
 import BrowseMatches from './pages/BrowseMatches';
 import ScheduledMatches from './pages/ScheduledMatches';
+import Notifications from './pages/Notifications';
 import './App.css';
+
+// Simple test component to verify React is working
+const TestComponent = () => (
+  <div style={{ padding: '20px', backgroundColor: '#f0f0f0', minHeight: '100vh' }}>
+    <h1 style={{ color: '#333' }}>PlayConnect - Working!</h1>
+    <p>React is rendering properly. Backend server is running on port 5000.</p>
+    <div style={{ marginTop: '20px' }}>
+      <a href="/login" style={{ marginRight: '10px', padding: '10px', backgroundColor: '#007bff', color: 'white', textDecoration: 'none', borderRadius: '5px' }}>Login</a>
+      <a href="/register" style={{ padding: '10px', backgroundColor: '#28a745', color: 'white', textDecoration: 'none', borderRadius: '5px' }}>Register</a>
+    </div>
+  </div>
+);
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -56,6 +70,9 @@ const PublicRoute = ({ children }) => {
 const AppContent = () => {
   return (
     <Routes>
+      {/* Test Route */}
+      <Route path="/test" element={<TestComponent />} />
+      
       {/* Public Routes */}
       <Route path="/" element={
         <PublicRoute>
@@ -72,11 +89,6 @@ const AppContent = () => {
           <Register />
         </PublicRoute>
       } />
-      <Route path="/forgot-password" element={
-        <PublicRoute>
-          <ForgotPassword />
-        </PublicRoute>
-      } />
 
       {/* Protected Routes */}
       <Route path="/dashboard" element={
@@ -85,6 +97,12 @@ const AppContent = () => {
         </ProtectedRoute>
       } />
       
+      <Route path="/teams" element={
+        <ProtectedRoute>
+          <Teams />
+        </ProtectedRoute>
+      } />
+
       <Route path="/matches" element={
         <ProtectedRoute>
           <Matches />
@@ -103,6 +121,12 @@ const AppContent = () => {
         </ProtectedRoute>
       } />
 
+      <Route path="/notifications" element={
+        <ProtectedRoute>
+          <Notifications />
+        </ProtectedRoute>
+      } />
+
       {/* Catch all route - redirect to home */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
@@ -112,11 +136,13 @@ const AppContent = () => {
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <div className="App">
-          <AppContent />
-        </div>
-      </Router>
+      <NotificationProvider>
+        <Router>
+          <div className="App">
+            <AppContent />
+          </div>
+        </Router>
+      </NotificationProvider>
     </AuthProvider>
   );
 }

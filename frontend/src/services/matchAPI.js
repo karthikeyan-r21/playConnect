@@ -103,4 +103,10 @@ export const getJoinedMatches = async () => {
   return response.matches || response || [];
 };
 
+// Get participants for a match (using the match details endpoint)
+export const getMatchParticipants = async (matchId) => {
+  const response = await api.get(`/matches/${matchId}`);
+  return response.data.match; // Returns match with populated participants
+};
+
 export default matchAPI;
