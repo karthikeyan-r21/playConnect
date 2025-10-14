@@ -11,7 +11,8 @@ const {
   leaveMatch,
   getMyMatches,
   getJoinedMatches,
-  getCreatedMatches
+  getCreatedMatches,
+  searchNearbyMatches
 } = require("../controllers/matchController");
 
 // Protected routes (require authentication)
@@ -20,6 +21,8 @@ router.use(auth);
 // Match CRUD operations
 router.post("/", createMatch);
 router.get("/", getMatches);
+// Search matches near a given location within a radius
+router.get('/search-nearby', searchNearbyMatches);
 router.get("/my-matches", getMyMatches);
 router.get("/created-matches", getCreatedMatches);
 router.get("/joined-matches", getJoinedMatches);

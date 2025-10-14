@@ -14,6 +14,7 @@ import Notifications from './pages/Notifications';
 import TalentShowcase from './pages/TalentShowcase';
 import Profile from './pages/Profile';
 import EditProfile from './pages/EditProfile';
+import LocationTester from './components/LocationTester';
 import './App.css';
 
 // Simple test component to verify React is working
@@ -73,8 +74,9 @@ const PublicRoute = ({ children }) => {
 const AppContent = () => {
   return (
     <Routes>
-      {/* Test Route */}
+      {/* Test Routes */}
       <Route path="/test" element={<TestComponent />} />
+      <Route path="/location-test" element={<LocationTester />} />
       
       {/* Public Routes */}
       <Route path="/" element={

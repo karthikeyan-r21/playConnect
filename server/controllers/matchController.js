@@ -4,12 +4,36 @@ const User = require("../models/User");
 // Create a new match
 exports.createMatch = async (req, res) => {
   try {
-    const { title, gameType, date, location, maxPlayers, description } = req.body;
+    const { title, gameType, date, location, geoLocation, maxPlayers, description } = req.body;
     const createdBy = req.user.id;
 
     // Validation
-    if (!title || !gameType || !date || !location) {
-      return res.status(400).json({ msg: "Title, game type, date, and location are required" });
+    if (!title || !gameType || !date || (!location && !geoLocation)) {
+      return res.status(400).json({ msg: "Title, game type, date, and location (address or geoLocation) are required" });
+    }
+
+    // Enhanced geoLocation handling with comprehensive location data
+    let geo = null;
+    if (geoLocation && typeof geoLocation === 'object' && Array.isArray(geoLocation.coordinates)) {
+      const [lng, lat] = geoLocation.coordinates.map(Number);
+      if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+        return res.status(400).json({ msg: 'Invalid geoLocation coordinates' });
+      }
+      geo = { 
+        type: 'Point', 
+        coordinates: [lng, lat],
+        name: geoLocation.name || '',
+        address: geoLocation.address || location || '',
+        city: geoLocation.city || '',
+        state: geoLocation.state || '',
+        country: geoLocation.country || 'India',
+        pincode: geoLocation.pincode || '',
+        placeId: geoLocation.placeId || geoLocation.id || '',
+        types: geoLocation.types || ['establishment'],
+        rating: geoLocation.rating || null,
+        phone: geoLocation.phone || null,
+        website: geoLocation.website || null
+      };
     }
 
     // Check if date is in the future
@@ -25,17 +49,20 @@ exports.createMatch = async (req, res) => {
       status = "past";
     }
 
-    const match = await Match.create({
+    const matchData = {
       title,
       gameType,
       date: matchDate,
-      location,
+      location: location || '',
+      geoLocation: geo,
       maxPlayers: maxPlayers || 10,
       description: description || "",
       createdBy,
       participants: [createdBy], // Creator automatically joins
       status
-    });
+    };
+
+    const match = await Match.create(matchData);
 
     // Create notification for the user who created the match
     const { createNotification } = require('./notificationController');
@@ -46,8 +73,8 @@ exports.createMatch = async (req, res) => {
     );
 
     const populatedMatch = await Match.findById(match._id)
-      .populate("createdBy", "name email mobile dob location profileImage media createdAt")
-      .populate("participants", "name email mobile dob location profileImage media createdAt");
+      .populate("createdBy", "name email mobile dob location profileImage media createdAt geoLocation")
+      .populate("participants", "name email mobile dob location profileImage media createdAt geoLocation");
 
     res.status(201).json({ msg: "Match created successfully", match: populatedMatch });
   } catch (err) {
@@ -120,7 +147,7 @@ exports.updateMatch = async (req, res) => {
       return res.status(403).json({ msg: "Not authorized to update this match" });
     }
 
-    const { title, gameType, date, location, maxPlayers, description } = req.body;
+  const { title, gameType, date, location, geoLocation, maxPlayers, description } = req.body;
     const updateData = {};
 
     if (title) updateData.title = title;
@@ -133,6 +160,28 @@ exports.updateMatch = async (req, res) => {
       updateData.date = matchDate;
     }
     if (location) updateData.location = location;
+    // Enhanced geoLocation handling for updates with comprehensive location data
+    if (geoLocation && typeof geoLocation === 'object' && Array.isArray(geoLocation.coordinates)) {
+      const [lng, lat] = geoLocation.coordinates.map(Number);
+      if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+        return res.status(400).json({ msg: 'Invalid geoLocation coordinates' });
+      }
+      updateData.geoLocation = { 
+        type: 'Point', 
+        coordinates: [lng, lat],
+        name: geoLocation.name || '',
+        address: geoLocation.address || location || '',
+        city: geoLocation.city || '',
+        state: geoLocation.state || '',
+        country: geoLocation.country || 'India',
+        pincode: geoLocation.pincode || '',
+        placeId: geoLocation.placeId || geoLocation.id || '',
+        types: geoLocation.types || ['establishment'],
+        rating: geoLocation.rating || null,
+        phone: geoLocation.phone || null,
+        website: geoLocation.website || null
+      };
+    }
     if (maxPlayers) updateData.maxPlayers = maxPlayers;
     if (description !== undefined) updateData.description = description;
 
@@ -312,5 +361,35 @@ exports.getJoinedMatches = async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ msg: "Server error" });
+  }
+};
+
+// Search matches near a location
+exports.searchNearbyMatches = async (req, res) => {
+  try {
+    const { lat, lng, maxDistance = 5000, gameType, title, limit = 50 } = req.query;
+    if (!lat || !lng) {
+      return res.status(400).json({ message: 'Latitude and longitude required' });
+    }
+
+    const geoNearStage = {
+      $geoNear: {
+        near: { type: 'Point', coordinates: [parseFloat(lng), parseFloat(lat)] },
+        distanceField: 'distanceMeters',
+        spherical: true,
+        maxDistance: parseInt(maxDistance),
+        query: {}
+      }
+    };
+
+    if (gameType) geoNearStage.$geoNear.query.gameType = { $regex: gameType, $options: 'i' };
+    if (title) geoNearStage.$geoNear.query.title = { $regex: title, $options: 'i' };
+
+    const pipeline = [geoNearStage, { $limit: parseInt(limit) }];
+    const matches = await Match.aggregate(pipeline);
+    res.json({ matches });
+  } catch (err) {
+    console.error('Error searching nearby matches:', err);
+    res.status(500).json({ message: 'Error searching nearby matches', error: err.message });
   }
 };

@@ -18,12 +18,26 @@ exports.getProfile = async (req, res) => {
 exports.updateProfile = async (req, res) => {
   try {
     const { name, dob, mobile, location, profileImage } = req.body;
+    let { geoLocation } = req.body;
     const updateData = {};
     if (name) updateData.name = name;
     if (dob) updateData.dob = dob;
     if (mobile) updateData.mobile = mobile;
     if (location) updateData.location = location;
     if (profileImage) updateData.profileImage = profileImage;
+
+    // parse geoLocation if passed as JSON string (multipart forms)
+    if (geoLocation && typeof geoLocation === 'string') {
+      try { geoLocation = JSON.parse(geoLocation); } catch (e) { geoLocation = null; }
+    }
+
+    if (geoLocation && typeof geoLocation === 'object' && Array.isArray(geoLocation.coordinates)) {
+      const [lng, lat] = geoLocation.coordinates.map(Number);
+      if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+        return res.status(400).json({ msg: 'Invalid geoLocation coordinates' });
+      }
+      updateData.geoLocation = { type: 'Point', coordinates: [lng, lat] };
+    }
 
     if (Object.keys(updateData).length === 0) {
       return res.status(400).json({ msg: "At least one field is required to update" });
@@ -140,7 +154,8 @@ exports.uploadMedia = async (req, res) => {
       type: fileType,
       url: result.secure_url,
       filename: req.file.originalname,
-      uploadDate: new Date()
+      uploadDate: new Date(),
+      cloudinaryId: result.public_id // Store for deletion
     };
     
     user.media.push(mediaItem);
@@ -189,20 +204,68 @@ exports.deleteMedia = async (req, res) => {
       return res.status(404).json({ msg: "User not found" });
     }
 
-    // Find and remove the media item
+    // Find the media item
     const mediaIndex = user.media.findIndex(item => item._id.toString() === mediaId);
     if (mediaIndex === -1) {
       console.log('Media not found');
       return res.status(404).json({ msg: "Media not found" });
     }
 
+    const mediaItem = user.media[mediaIndex];
+    
+    // Delete from Cloudinary if cloudinaryId exists
+    if (mediaItem.cloudinaryId) {
+      try {
+        await cloudinary.uploader.destroy(mediaItem.cloudinaryId, {
+          resource_type: mediaItem.type === 'video' ? 'video' : 'image'
+        });
+        console.log('Media deleted from Cloudinary:', mediaItem.cloudinaryId);
+      } catch (cloudinaryError) {
+        console.error('Error deleting from Cloudinary:', cloudinaryError);
+        // Continue with database deletion even if Cloudinary deletion fails
+      }
+    }
+
+    // Remove from user's media array
     user.media.splice(mediaIndex, 1);
     await user.save();
-    console.log('Media deleted successfully');
+    console.log('Media deleted successfully from database');
 
     res.json({ msg: "Media deleted successfully", remainingMedia: user.media.length });
   } catch (err) {
     console.error("Error deleting media:", err);
     res.status(500).json({ msg: "Internal server error", error: err.message });
+  }
+};
+
+// Search users near a location
+exports.searchNearbyUsers = async (req, res) => {
+  try {
+    const { lat, lng, maxDistance = 5000, limit = 50 } = req.query;
+    if (!lat || !lng) {
+      return res.status(400).json({ message: 'Latitude and longitude required' });
+    }
+
+    const geoNearStage = {
+      $geoNear: {
+        near: { type: 'Point', coordinates: [parseFloat(lng), parseFloat(lat)] },
+        distanceField: 'distanceMeters',
+        spherical: true,
+        maxDistance: parseInt(maxDistance),
+        query: {}
+      }
+    };
+
+    const pipeline = [
+      geoNearStage,
+      { $limit: parseInt(limit) },
+      // Exclude sensitive fields like password from the response
+      { $project: { password: 0 } }
+    ];
+    const users = await User.aggregate(pipeline);
+    res.json({ users });
+  } catch (err) {
+    console.error('Error searching nearby users:', err);
+    res.status(500).json({ message: 'Error searching nearby users', error: err.message });
   }
 };

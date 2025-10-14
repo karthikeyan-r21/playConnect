@@ -2,10 +2,10 @@ const express = require("express");
 const router = express.Router();
 const auth = require("../middleware/auth");
 const mediaUploadController = require("../controllers/mediaUploadController");
-const uploadMiddleware = require("../middleware/multer");
+const { mediaUpload } = require("../middleware/multer");
 
 // Upload media for user profile
-router.post("/upload", auth, uploadMiddleware.single("media"), mediaUploadController.uploadUserMedia);
+router.post("/upload", auth, mediaUpload.single("media"), mediaUploadController.uploadUserMedia);
 
 // View all media for a user
 router.get("/user/:userId", auth, mediaUploadController.getUserMedia);

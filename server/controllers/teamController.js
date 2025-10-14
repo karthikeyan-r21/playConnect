@@ -1,56 +1,31 @@
-// Delete a team and notify all members
-exports.deleteTeam = async (req, res) => {
-  try {
-  const { teamId } = req.params;
-  const reason = (req.body && req.body.reason) || (req.query && req.query.reason) || "Team deleted";
-  const team = await Team.findById(teamId).populate('members', '_id name email');
-    if (!team) {
-      return res.status(404).json({ message: "Team not found" });
-    }
-    // Only the team owner can delete the team
-    if (team.createdBy.toString() !== req.user.id.toString()) {
-      return res.status(403).json({ message: "Only the team owner can delete the team" });
-    }
-    // Notify all members (except owner)
-    const memberIds = team.members
-      .filter(member => member._id.toString() !== team.createdBy.toString())
-      .map(member => member._id);
-    await Promise.all(memberIds.map(memberId =>
-      Notification.create({
-        user: memberId,
-        message: `Team ${team.name} has been deleted by the owner.`,
-        reason
-      })
-    ));
-    await team.deleteOne();
-    res.json({ message: "Team deleted successfully" });
-  } catch (error) {
-    console.error("Error deleting team:", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
-}
 const mongoose = require("mongoose");
-const Team = require("../models/team");
+const Team = require("../models/Team");
 const Notification = require("../models/notification");
 
 exports.createTeam = async (req, res) => {
   try {
-  const { name, description, sportType, location, minAge } = req.body;
+    const { name, description, sportType, location, minAge } = req.body;
     const createdBy = req.user.id;
 
     if (!name) {
       return res.status(400).json({ message: "Team name is required" });
     }
 
-    const team = new Team({
-      name,
-      description,
-      sportType,
-      location,
-      minAge,
-      createdBy,
-      members: [createdBy], // Add creator as the first member
-    });
+    const teamData = { name, description, sportType, minAge, createdBy, members: [createdBy] };
+
+    // Normalize location: accept GeoJSON object or string address
+    if (location && typeof location === 'object' && Array.isArray(location.coordinates)) {
+      const [lng, lat] = location.coordinates.map(Number);
+      if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+        return res.status(400).json({ message: 'Invalid location coordinates' });
+      }
+      teamData.location = { type: 'Point', coordinates: [lng, lat] };
+    } else if (location && typeof location === 'string') {
+      // store human-readable address separately
+      teamData.address = location;
+    }
+
+    const team = new Team(teamData);
 
     await team.save();
     res.status(201).json({ message: "Team created successfully", team });
@@ -65,7 +40,7 @@ exports.createTeam = async (req, res) => {
 exports.editTeam = async (req, res) => {
   try {
     const { teamId } = req.params;
-    const { name, description, sportType } = req.body;
+    const { name, description, sportType, location } = req.body;
 
     const team = await Team.findById(teamId);
     if (!team) {
@@ -80,6 +55,18 @@ exports.editTeam = async (req, res) => {
     if (name) team.name = name;
     if (description) team.description = description;
     if (sportType) team.sportType = sportType;
+    // Allow updating location: accept GeoJSON object or string address
+    if (location && typeof location === 'object' && Array.isArray(location.coordinates)) {
+      const [lng, lat] = location.coordinates.map(Number);
+      if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+        return res.status(400).json({ message: 'Invalid location coordinates' });
+      }
+      team.location = { type: 'Point', coordinates: [lng, lat] };
+      team.address = undefined;
+    } else if (location && typeof location === 'string') {
+      team.address = location;
+      team.location = undefined;
+    }
 
     await team.save();
     res.json({ message: "Team updated successfully", team });
@@ -91,11 +78,17 @@ exports.editTeam = async (req, res) => {
 
 exports.searchTeams = async (req, res) => {
   try {
-    const { name, sportType, location ,description} = req.query;
+    const { name, sportType, location, description} = req.query;
     let filter = {};
     if (name) filter.name = { $regex: name, $options: "i" };
     if (sportType) filter.sportType = { $regex: sportType, $options: "i" };
-    if (location) filter.location = { $regex: location, $options: "i" };
+    // Fix location search - search in address field for string addresses
+    if (location) {
+      filter.$or = [
+        { address: { $regex: location, $options: "i" } },
+        { "location.coordinates": { $exists: true } } // For GeoJSON locations, we'll need coordinates search
+      ];
+    }
     if (description) filter.description = { $regex: description, $options: "i" };
 
     const teams = await Team.find(filter)
@@ -126,6 +119,7 @@ exports.getUserTeams = async (req, res) => {
     res.status(500).json({ msg: "Server error" });
   }
 };
+
 exports.sendJoinRequest = async (req, res) => {
   try {
     const { teamId } = req.params;
@@ -177,6 +171,7 @@ exports.sendJoinRequest = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
 exports.approveJoinRequest = async (req, res) => {
   try {
     const { teamId } = req.params;
@@ -225,6 +220,7 @@ exports.approveJoinRequest = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
 exports.rejectJoinRequest = async (req, res) => {
   try {
     const { teamId } = req.params;
@@ -287,40 +283,38 @@ exports.getTeamDetails = async (req, res) => {
 
 exports.deleteTeamMember = async (req, res) => {
   try {
-    
-
     const { teamId, memberId } = req.params;
 
-const team = await Team.findById(teamId);
-if (!team) {
-  return res.status(404).json({ message: "Team not found" });
-}
-// Only the team owner can delete members
-if (team.createdBy.toString() !== req.user.id.toString()) {
-  return res.status(403).json({ message: "Only the team owner can delete members" });
-}
+    const team = await Team.findById(teamId);
+    if (!team) {
+      return res.status(404).json({ message: "Team not found" });
+    }
+    // Only the team owner can delete members
+    if (team.createdBy.toString() !== req.user.id.toString()) {
+      return res.status(403).json({ message: "Only the team owner can delete members" });
+    }
 
-if (!memberId || !mongoose.Types.ObjectId.isValid(memberId)) {
-  return res.status(400).json({ message: "Invalid member ID" });
-}
+    if (!memberId || !mongoose.Types.ObjectId.isValid(memberId)) {
+      return res.status(400).json({ message: "Invalid member ID" });
+    }
 
-if (!team.members.some((id) => id.toString() === memberId.toString())) {
-  return res.status(400).json({ message: "User is not a member of the team" });
-}
+    if (!team.members.some((id) => id.toString() === memberId.toString())) {
+      return res.status(400).json({ message: "User is not a member of the team" });
+    }
 
-// Remove the member from the team
-team.members = team.members.filter(
-  (id) => id.toString() !== memberId.toString()
-);
-await team.save();
+    // Remove the member from the team
+    team.members = team.members.filter(
+      (id) => id.toString() !== memberId.toString()
+    );
+    await team.save();
 
-// Notify removed user
-await Notification.create({
-  user: memberId,
-  message: `You have been removed from team ${team.name} by the owner.`,
-  reason: req.body.reason || "Removed from team"
-});
-res.json({ message: "Member removed successfully", team });
+    // Notify removed user
+    await Notification.create({
+      user: memberId,
+      message: `You have been removed from team ${team.name} by the owner.`,
+      reason: req.body.reason || "Removed from team"
+    });
+    res.json({ message: "Member removed successfully", team });
   } catch (error) {
     console.error("Error deleting team member:", error);
     res.status(500).json({ message: "Internal server error" });
@@ -364,6 +358,7 @@ exports.leaveTeam = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
 exports.getJoinedTeams = async (req, res) => {
   try {
     const userId = req.params.userId;
@@ -430,6 +425,77 @@ exports.getTeamMembers = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching team members and requests:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+
+
+
+// Search teams near a location
+exports.searchNearbyTeams = async (req, res) => {
+  try {
+    const { lat, lng, maxDistance = 5000, sportType, name, limit = 50 } = req.query; // distances in meters
+    if (!lat || !lng) {
+      return res.status(400).json({ message: "Latitude and longitude required" });
+    }
+
+    // Build the $geoNear stage with optional query filters
+    const geoNearStage = {
+      $geoNear: {
+        near: { type: "Point", coordinates: [parseFloat(lng), parseFloat(lat)] },
+        distanceField: "distanceMeters",
+        spherical: true,
+        maxDistance: parseInt(maxDistance),
+        query: {}
+      }
+    };
+
+    if (sportType) {
+      geoNearStage.$geoNear.query.sportType = { $regex: sportType, $options: 'i' };
+    }
+    if (name) {
+      geoNearStage.$geoNear.query.name = { $regex: name, $options: 'i' };
+    }
+
+    const pipeline = [geoNearStage, { $limit: parseInt(limit) }];
+
+    const teams = await Team.aggregate(pipeline);
+
+    res.json({ teams });
+  } catch (err) {
+    console.error("Error searching nearby teams:", err);
+    res.status(500).json({ message: "Error searching nearby teams", error: err.message });
+  }
+};
+// Delete a team and notify all members
+exports.deleteTeam = async (req, res) => {
+  try {
+    const { teamId } = req.params;
+    const reason = (req.body && req.body.reason) || (req.query && req.query.reason) || "Team deleted";
+    const team = await Team.findById(teamId).populate('members', '_id name email');
+    if (!team) {
+      return res.status(404).json({ message: "Team not found" });
+    }
+    // Only the team owner can delete the team
+    if (team.createdBy.toString() !== req.user.id.toString()) {
+      return res.status(403).json({ message: "Only the team owner can delete the team" });
+    }
+    // Notify all members (except owner)
+    const memberIds = team.members
+      .filter(member => member._id.toString() !== team.createdBy.toString())
+      .map(member => member._id);
+    await Promise.all(memberIds.map(memberId =>
+      Notification.create({
+        user: memberId,
+        message: `Team ${team.name} has been deleted by the owner.`,
+        reason
+      })
+    ));
+    await team.deleteOne();
+    res.json({ message: "Team deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting team:", error);
     res.status(500).json({ message: "Internal server error" });
   }
 };

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Calendar, MapPin, Users, Trophy, Filter, Search, Clock, CheckCircle, XCircle, Plus } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Users, Trophy, Filter, Search, Clock, CheckCircle, XCircle, Plus, X } from 'lucide-react';
 import { getAllMatches, joinMatch } from '../services/matchAPI';
 import { useAuth } from '../context/AuthContext';
 
@@ -15,6 +15,10 @@ const BrowseMatches = () => {
   const [selectedSport, setSelectedSport] = useState('');
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedLocation, setSelectedLocation] = useState('');
+  const [locationSearchQuery, setLocationSearchQuery] = useState('');
+  const [showLocationDropdown, setShowLocationDropdown] = useState(false);
+  const [userLocation, setUserLocation] = useState(null);
+  const [nearbyRadius, setNearbyRadius] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [joiningMatchId, setJoiningMatchId] = useState(null);
   const [success, setSuccess] = useState('');
@@ -73,10 +77,69 @@ const BrowseMatches = () => {
     };
   };
 
-  // Extract unique locations from matches for filter dropdown
+  // Extract comprehensive location data for filtering
   const getUniqueLocations = () => {
-    const locations = matches.map(match => match.location).filter(Boolean);
-    return [...new Set(locations)].sort();
+    const locationMap = new Map();
+    
+    matches.forEach(match => {
+      // Create location objects with detailed info
+      const addLocation = (name, type, coordinates = null, address = null) => {
+        if (name && !locationMap.has(name)) {
+          locationMap.set(name, {
+            name,
+            type,
+            coordinates,
+            address,
+            count: 1
+          });
+        } else if (name && locationMap.has(name)) {
+          locationMap.get(name).count++;
+        }
+      };
+
+      // Add various location types
+      if (match.location) {
+        addLocation(match.location, 'primary', match.geoLocation?.coordinates, match.geoLocation?.address);
+      }
+      
+      if (match.geoLocation?.name && match.geoLocation.name !== match.location) {
+        addLocation(match.geoLocation.name, 'venue', match.geoLocation.coordinates, match.geoLocation.address);
+      }
+      
+      if (match.geoLocation?.city) {
+        addLocation(match.geoLocation.city, 'city', match.geoLocation.coordinates);
+      }
+      
+      if (match.geoLocation?.state) {
+        addLocation(match.geoLocation.state, 'state', match.geoLocation.coordinates);
+      }
+
+      // Extract locality from address
+      if (match.geoLocation?.address) {
+        const addressParts = match.geoLocation.address.split(',');
+        addressParts.forEach(part => {
+          const cleaned = part.trim();
+          if (cleaned && cleaned.length > 2 && !cleaned.match(/^\d+$/) && !cleaned.match(/^[A-Z]{2,3}$/)) {
+            addLocation(cleaned, 'locality', match.geoLocation.coordinates, match.geoLocation.address);
+          }
+        });
+      }
+    });
+    
+    // Convert to array and sort by relevance (count) and name
+    return Array.from(locationMap.values())
+      .sort((a, b) => {
+        // Prioritize by type: city > venue > primary > locality > state
+        const typeOrder = { city: 1, venue: 2, primary: 3, locality: 4, state: 5 };
+        const typeCompare = (typeOrder[a.type] || 6) - (typeOrder[b.type] || 6);
+        if (typeCompare !== 0) return typeCompare;
+        
+        // Then by count (more matches first)
+        if (b.count !== a.count) return b.count - a.count;
+        
+        // Finally alphabetically
+        return a.name.localeCompare(b.name);
+      });
   };
 
   useEffect(() => {
@@ -85,7 +148,7 @@ const BrowseMatches = () => {
 
   useEffect(() => {
     filterMatches();
-  }, [matches, searchTerm, selectedSport, selectedDate, selectedLocation]);
+  }, [matches, searchTerm, selectedSport, selectedDate, selectedLocation, nearbyRadius, userLocation]);
 
   const fetchAllMatches = async () => {
     try {
@@ -112,12 +175,16 @@ const BrowseMatches = () => {
   const filterMatches = () => {
     let filtered = matches;
 
-    // Search filter
+    // Enhanced search filter including geoLocation data
     if (searchTerm) {
       filtered = filtered.filter(match => 
         match.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         match.gameType?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         match.location?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        match.geoLocation?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        match.geoLocation?.address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        match.geoLocation?.city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        match.geoLocation?.state?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         match.createdBy?.name?.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
@@ -127,9 +194,30 @@ const BrowseMatches = () => {
       filtered = filtered.filter(match => match.gameType === selectedSport);
     }
 
-    // Location filter
+    // Smart location filter - searches across all location fields
     if (selectedLocation) {
-      filtered = filtered.filter(match => match.location === selectedLocation);
+      filtered = filtered.filter(match => {
+        const locationLower = selectedLocation.toLowerCase();
+        
+        // Direct matches
+        if (match.location?.toLowerCase() === locationLower) return true;
+        if (match.geoLocation?.name?.toLowerCase() === locationLower) return true;
+        if (match.geoLocation?.city?.toLowerCase() === locationLower) return true;
+        if (match.geoLocation?.state?.toLowerCase() === locationLower) return true;
+        
+        // Partial matches in address
+        if (match.geoLocation?.address?.toLowerCase().includes(locationLower)) return true;
+        
+        // Check if selected location is part of any address component
+        if (match.geoLocation?.address) {
+          const addressParts = match.geoLocation.address.split(',').map(part => part.trim().toLowerCase());
+          if (addressParts.some(part => part.includes(locationLower) || locationLower.includes(part))) {
+            return true;
+          }
+        }
+        
+        return false;
+      });
     }
 
     // Date filter
@@ -140,7 +228,59 @@ const BrowseMatches = () => {
       });
     }
 
+    // Proximity filter - new feature
+    if (nearbyRadius) {
+      filtered = filterByProximity(filtered, nearbyRadius);
+    }
+
     setFilteredMatches(filtered);
+  };
+
+  // Get user's current location for proximity filtering
+  const getCurrentUserLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          });
+        },
+        (error) => {
+          console.warn('Could not get current location:', error);
+        }
+      );
+    }
+  };
+
+  // Calculate distance between two points in kilometers
+  const calculateDistance = (lat1, lng1, lat2, lng2) => {
+    const R = 6371; // Radius of Earth in kilometers
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLng/2) * Math.sin(dLng/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  };
+
+  // Filter matches by proximity
+  const filterByProximity = (matches, radius) => {
+    if (!userLocation || !radius) return matches;
+    
+    return matches.filter(match => {
+      if (!match.geoLocation?.coordinates) return false;
+      
+      const [lng, lat] = match.geoLocation.coordinates;
+      const distance = calculateDistance(
+        userLocation.lat, userLocation.lng, 
+        lat, lng
+      );
+      
+      return distance <= parseFloat(radius);
+    });
   };
 
   const clearFilters = () => {
@@ -148,6 +288,9 @@ const BrowseMatches = () => {
     setSelectedSport('');
     setSelectedDate('');
     setSelectedLocation('');
+    setLocationSearchQuery('');
+    setNearbyRadius('');
+    setShowLocationDropdown(false);
   };
 
   const formatDate = (dateString) => {
@@ -243,12 +386,7 @@ const BrowseMatches = () => {
               )}
             </div>
 
-            {match.location && (
-              <div className="flex items-center text-sm text-gray-600">
-                <MapPin className="h-4 w-4 mr-2 text-red-500" />
-                <span>{match.location}</span>
-              </div>
-            )}
+            <LocationDisplay match={match} />
 
             <div className="flex items-center justify-between text-sm">
               <div className={`flex items-center ${colors.text}`}>
@@ -327,6 +465,153 @@ const BrowseMatches = () => {
           </div>
         </div>
       </div>
+    );
+  };
+
+  // Component to display enhanced location information with Google Maps integration
+  const LocationDisplay = ({ match }) => {
+    const [showLocationModal, setShowLocationModal] = useState(false);
+    
+    const openGoogleMaps = () => {
+      if (match.geoLocation?.coordinates && match.geoLocation.coordinates[0] && match.geoLocation.coordinates[1]) {
+        const [lng, lat] = match.geoLocation.coordinates;
+        const googleMapsUrl = `https://www.google.com/maps?q=${lat},${lng}&z=16`;
+        window.open(googleMapsUrl, '_blank');
+      } else if (match.location) {
+        const googleMapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(match.location)}`;
+        window.open(googleMapsUrl, '_blank');
+      }
+    };
+
+    return (
+      <>
+        {match.location && (
+          <div className="flex items-center text-sm text-gray-600">
+            <button
+              onClick={openGoogleMaps}
+              className="flex items-start text-left hover:text-blue-600 transition-colors group cursor-pointer"
+              title="Click to open in Google Maps"
+            >
+              <MapPin className="h-4 w-4 mr-2 text-red-500 group-hover:text-blue-500 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <div className="font-medium group-hover:text-blue-600">
+                  {match.geoLocation?.name || match.location}
+                </div>
+                {match.geoLocation?.address && (
+                  <div className="text-xs text-gray-500 group-hover:text-blue-500 truncate">
+                    {match.geoLocation.address}
+                  </div>
+                )}
+              </div>
+            </button>
+            
+            {match.geoLocation?.coordinates && (
+              <button
+                onClick={() => setShowLocationModal(true)}
+                className="ml-2 p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-blue-500"
+                title="View location details"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Location Details Modal */}
+        {showLocationModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Location Details</h3>
+                <button
+                  onClick={() => setShowLocationModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Name:</label>
+                  <p className="text-gray-900">{match.geoLocation?.name || match.location}</p>
+                </div>
+                
+                {match.geoLocation?.address && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Address:</label>
+                    <p className="text-gray-900">{match.geoLocation.address}</p>
+                  </div>
+                )}
+                
+                <div className="grid grid-cols-2 gap-3">
+                  {match.geoLocation?.city && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">City:</label>
+                      <p className="text-gray-900">{match.geoLocation.city}</p>
+                    </div>
+                  )}
+                  
+                  {match.geoLocation?.state && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">State:</label>
+                      <p className="text-gray-900">{match.geoLocation.state}</p>
+                    </div>
+                  )}
+                  
+                  {match.geoLocation?.pincode && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">PIN Code:</label>
+                      <p className="text-gray-900">{match.geoLocation.pincode}</p>
+                    </div>
+                  )}
+                  
+                  {match.geoLocation?.country && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Country:</label>
+                      <p className="text-gray-900">{match.geoLocation.country}</p>
+                    </div>
+                  )}
+                </div>
+                
+                {match.geoLocation?.coordinates && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Coordinates:</label>
+                    <p className="text-gray-900 font-mono text-sm">
+                      {match.geoLocation.coordinates[1]?.toFixed(6)}, {match.geoLocation.coordinates[0]?.toFixed(6)}
+                    </p>
+                  </div>
+                )}
+                
+                {match.geoLocation?.rating && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Rating:</label>
+                    <p className="text-gray-900">⭐ {match.geoLocation.rating}/5</p>
+                  </div>
+                )}
+              </div>
+              
+              <div className="mt-6 flex gap-3">
+                <button
+                  onClick={openGoogleMaps}
+                  className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                >
+                  <MapPin className="h-4 w-4" />
+                  Open in Google Maps
+                </button>
+                <button
+                  onClick={() => setShowLocationModal(false)}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </>
     );
   };
 
@@ -424,7 +709,7 @@ const BrowseMatches = () => {
               <Filter className="h-5 w-5 text-blue-600 mr-2" />
               <h3 className="text-lg font-semibold text-gray-900">Filter Matches</h3>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
               {/* Enhanced Search */}
               <div className="relative group">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 group-focus-within:text-blue-500 transition-colors" />
@@ -452,19 +737,110 @@ const BrowseMatches = () => {
                 </select>
               </div>
 
-              {/* Enhanced Location Filter */}
+              {/* Smart Location Search Filter */}
               <div className="relative">
-                <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
-                <select
-                  value={selectedLocation}
-                  onChange={(e) => setSelectedLocation(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-gray-400 appearance-none bg-white"
-                >
-                  <option value="">All Locations</option>
-                  {getUniqueLocations().map(location => (
-                    <option key={location} value={location}>{location}</option>
-                  ))}
-                </select>
+                <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 z-10" />
+                <input
+                  type="text"
+                  placeholder="🌍 Search city, town, venue..."
+                  value={locationSearchQuery || selectedLocation}
+                  onChange={(e) => {
+                    setLocationSearchQuery(e.target.value);
+                    if (!e.target.value) {
+                      setSelectedLocation('');
+                    }
+                    setShowLocationDropdown(true);
+                  }}
+                  onFocus={() => setShowLocationDropdown(true)}
+                  onBlur={() => setTimeout(() => setShowLocationDropdown(false), 500)}
+                  className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-gray-400 bg-white"
+                />
+                {(locationSearchQuery || selectedLocation) && (
+                  <button
+                    onClick={() => {
+                      setLocationSearchQuery('');
+                      setSelectedLocation('');
+                      setShowLocationDropdown(false);
+                    }}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+                
+                {/* Location Dropdown */}
+                {showLocationDropdown && (
+                  <div 
+                    className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-xl shadow-lg z-50 max-h-64 overflow-y-auto"
+                    onMouseEnter={() => setShowLocationDropdown(true)}
+                    onMouseLeave={() => setTimeout(() => setShowLocationDropdown(false), 300)}
+                  >
+                    {getUniqueLocations()
+                      .filter(location => 
+                        !locationSearchQuery || 
+                        location.name.toLowerCase().includes(locationSearchQuery.toLowerCase())
+                      )
+                      .slice(0, 10)
+                      .map((location, index) => (
+                        <button
+                          key={`${location.name}-${index}`}
+                          onClick={() => {
+                            setSelectedLocation(location.name);
+                            setLocationSearchQuery('');
+                            setShowLocationDropdown(false);
+                          }}
+                          className="w-full text-left px-4 py-3 hover:bg-blue-50 flex items-center justify-between border-b border-gray-100 last:border-b-0"
+                        >
+                          <div className="flex items-center">
+                            <span className="text-lg mr-3">
+                              {location.type === 'city' ? '🏙️' : 
+                               location.type === 'venue' ? '🏟️' : 
+                               location.type === 'state' ? '🗺️' : 
+                               location.type === 'locality' ? '🏘️' : '📍'}
+                            </span>
+                            <div>
+                              <div className="font-medium text-gray-900">{location.name}</div>
+                              <div className="text-xs text-gray-500 capitalize">{location.type}</div>
+                            </div>
+                          </div>
+                          {location.count > 1 && (
+                            <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full">
+                              {location.count} matches
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    
+                    {/* No results */}
+                    {locationSearchQuery && 
+                     getUniqueLocations().filter(location => 
+                       location.name.toLowerCase().includes(locationSearchQuery.toLowerCase())
+                     ).length === 0 && (
+                      <div className="px-4 py-3 text-center text-gray-500">
+                        <Search className="h-5 w-5 mx-auto mb-2" />
+                        <div className="text-sm">No locations found</div>
+                        <div className="text-xs">Try searching for a city or venue name</div>
+                      </div>
+                    )}
+                    
+                    {/* Show all option */}
+                    {!locationSearchQuery && (
+                      <button
+                        onClick={() => {
+                          setSelectedLocation('');
+                          setLocationSearchQuery('');
+                          setShowLocationDropdown(false);
+                        }}
+                        className="w-full text-left px-4 py-3 hover:bg-gray-50 border-t border-gray-200 text-gray-600"
+                      >
+                        <div className="flex items-center">
+                          <span className="text-lg mr-3">🌍</span>
+                          <span className="font-medium">All Locations</span>
+                        </div>
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Enhanced Date Filter */}
@@ -479,6 +855,49 @@ const BrowseMatches = () => {
                 />
               </div>
 
+              {/* Proximity Filter (Near Me) */}
+              <div className="relative">
+                <div className="flex">
+                  <div className="relative flex-1">
+                    <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <select
+                      value={nearbyRadius}
+                      onChange={(e) => {
+                        setNearbyRadius(e.target.value);
+                        if (e.target.value && !userLocation) {
+                          getCurrentUserLocation();
+                        }
+                      }}
+                      className="w-full pl-10 pr-8 py-3 border border-gray-300 rounded-l-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-gray-400 appearance-none bg-white"
+                      title="Filter matches within specified radius from your location"
+                    >
+                      <option value="">📍 Near Me</option>
+                      <option value="5">🚶 5km</option>
+                      <option value="10">🚲 10km</option>
+                      <option value="25">🚗 25km</option>
+                      <option value="50">🛣️ 50km</option>
+                      <option value="100">✈️ 100km</option>
+                    </select>
+                  </div>
+                  {nearbyRadius && (
+                    <button
+                      onClick={getCurrentUserLocation}
+                      className={`px-3 border border-l-0 border-gray-300 rounded-r-xl transition-all duration-200 ${
+                        userLocation 
+                          ? 'bg-green-500 text-white hover:bg-green-600' 
+                          : 'bg-blue-500 text-white hover:bg-blue-600'
+                      }`}
+                      title={userLocation ? 'Location detected' : 'Get current location'}
+                    >
+                      {userLocation ? '✓' : '📍'}
+                    </button>
+                  )}
+                </div>
+              </div>
+
               {/* Enhanced Clear Filters */}
               <button
                 onClick={clearFilters}
@@ -490,7 +909,7 @@ const BrowseMatches = () => {
             </div>
             
             {/* Active Filters Indicator */}
-            {(searchTerm || selectedSport || selectedLocation || selectedDate) && (
+            {(searchTerm || selectedSport || selectedLocation || selectedDate || nearbyRadius) && (
               <div className="mt-4 pt-4 border-t border-gray-200">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm font-medium text-gray-700">Active filters:</span>
@@ -512,6 +931,11 @@ const BrowseMatches = () => {
                   {selectedDate && (
                     <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
                       Date: {selectedDate}
+                    </span>
+                  )}
+                  {nearbyRadius && (
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                      📍 Within {nearbyRadius}km {userLocation ? '✓' : '❌'}
                     </span>
                   )}
                 </div>

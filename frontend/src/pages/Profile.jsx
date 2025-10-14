@@ -41,8 +41,12 @@ const Profile = () => {
       setIsLoading(true);
       const token = localStorage.getItem('token');
       
-      if (!token) return;
+      if (!token) {
+        console.log('No token found, skipping media load');
+        return;
+      }
 
+      console.log('Loading user media...');
       const response = await fetch('http://localhost:5000/api/users/media', {
         method: 'GET',
         headers: {
@@ -51,9 +55,14 @@ const Profile = () => {
         }
       });
 
+      const data = await response.json();
+      console.log('Media load response:', data);
+
       if (response.ok) {
-        const data = await response.json();
         setUserMedia(data.media || []);
+        console.log('Media loaded successfully:', data.media?.length || 0, 'items');
+      } else {
+        console.error('Failed to load media:', data.msg || 'Unknown error');
       }
     } catch (error) {
       console.error('Error loading media:', error);
@@ -66,6 +75,7 @@ const Profile = () => {
     try {
       const token = localStorage.getItem('token');
       
+      console.log('Deleting media:', mediaId);
       const response = await fetch(`http://localhost:5000/api/users/media/${mediaId}`, {
         method: 'DELETE',
         headers: {
@@ -74,12 +84,20 @@ const Profile = () => {
         }
       });
 
+      const data = await response.json();
+      console.log('Delete response:', data);
+
       if (response.ok) {
         setUserMedia(prev => prev.filter(item => item._id !== mediaId));
         setSelectedMedia(null);
+        console.log('Media deleted successfully');
+      } else {
+        console.error('Failed to delete media:', data.msg || 'Unknown error');
+        alert(`Delete failed: ${data.msg || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error deleting media:', error);
+      alert(`Delete error: ${error.message}`);
     }
   };
 
@@ -87,6 +105,13 @@ const Profile = () => {
     const filteredMedia = activeTab === 'videos' 
       ? userMedia.filter(media => media.type === 'video')
       : userMedia;
+
+    console.log('MediaGrid render:', { 
+      activeTab, 
+      totalMedia: userMedia.length, 
+      filteredMedia: filteredMedia.length,
+      userMedia: userMedia 
+    });
 
     return (
       <div className="grid grid-cols-3 gap-1 md:gap-2">
@@ -265,6 +290,8 @@ const Profile = () => {
         const formData = new FormData();
         formData.append('media', selectedFile);
 
+        console.log('Uploading media:', selectedFile.name, selectedFile.type);
+
         const response = await fetch('http://localhost:5000/api/users/upload-media', {
           method: 'POST',
           headers: {
@@ -273,14 +300,22 @@ const Profile = () => {
           body: formData
         });
 
+        const data = await response.json();
+        console.log('Upload response:', data);
+
         if (response.ok) {
+          console.log('Upload successful, reloading media...');
           await loadUserMedia();
           setShowUploadModal(false);
           setSelectedFile(null);
           setPreview(null);
+        } else {
+          console.error('Upload failed:', data.msg || 'Unknown error');
+          alert(`Upload failed: ${data.msg || 'Unknown error'}`);
         }
       } catch (error) {
         console.error('Upload error:', error);
+        alert(`Upload error: ${error.message}`);
       } finally {
         setIsUploading(false);
       }

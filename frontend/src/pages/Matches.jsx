@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { matchAPI } from '../services/matchAPI';
 import { useAuth } from '../context/AuthContext';
+import LocationInput from '../components/LocationInput';
 
 const Matches = () => {
   const { user } = useAuth();
@@ -45,6 +46,7 @@ const Matches = () => {
     gameType: '',
     date: '',
     location: '',
+    geoLocation: null,
     maxPlayers: 10,
     description: ''
   });
@@ -186,6 +188,36 @@ const Matches = () => {
     }));
   };
 
+  const handleLocationSelect = (locationData) => {
+    if (locationData) {
+      setFormData(prev => ({
+        ...prev,
+        location: locationData.name || locationData.address?.split(',')[0] || locationData.address, // Store primary name in location field
+        geoLocation: {
+          type: 'Point',
+          coordinates: locationData.coordinates,
+          name: locationData.name,
+          address: locationData.address,
+          city: locationData.city,
+          state: locationData.state,
+          country: locationData.country,
+          pincode: locationData.pincode,
+          placeId: locationData.placeId,
+          types: locationData.types,
+          rating: locationData.rating,
+          phone: locationData.phone,
+          website: locationData.website
+        }
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        location: '',
+        geoLocation: null
+      }));
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -208,11 +240,10 @@ const Matches = () => {
         title: '',
         gameType: '',
         date: '',
-        time: '',
         location: '',
-        maxParticipants: 10,
-        description: '',
-        requirements: ''
+        geoLocation: null,
+        maxPlayers: 10,
+        description: ''
       });
       
       // Refresh matches
@@ -233,6 +264,7 @@ const Matches = () => {
       gameType: match.gameType,
       date: new Date(match.date).toISOString().slice(0, 16),
       location: match.location,
+      geoLocation: match.geoLocation || null,
       maxPlayers: match.maxPlayers,
       description: match.description || ''
     });
@@ -254,6 +286,7 @@ const Matches = () => {
         gameType: '',
         date: '',
         location: '',
+        geoLocation: null,
         maxPlayers: 10,
         description: ''
       });
@@ -434,10 +467,7 @@ const Matches = () => {
             <Calendar className="h-4 w-4 mr-2 text-green-500" />
             {formatDate(match.date)}
           </div>
-          <div className="flex items-center text-sm text-gray-600">
-            <MapPin className="h-4 w-4 mr-2 text-red-500" />
-            {match.location}
-          </div>
+          <LocationDisplay match={match} />
           <div className="flex items-center text-sm text-gray-600">
             <Users className="h-4 w-4 mr-2 text-indigo-500" />
             {match.participants?.length || 0} / {match.maxPlayers} players
@@ -539,7 +569,11 @@ const Matches = () => {
       const matchesSearch = !searchQuery || 
         match.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         match.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        match.gameType.toLowerCase().includes(searchQuery.toLowerCase());
+        match.gameType.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        match.geoLocation?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        match.geoLocation?.address?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        match.geoLocation?.city?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        match.geoLocation?.state?.toLowerCase().includes(searchQuery.toLowerCase());
       
       const matchesGameFilter = !selectedGameFilter || match.gameType === selectedGameFilter;
       
@@ -558,6 +592,7 @@ const Matches = () => {
       title: match.title,
       gameType: match.gameType,
       location: match.location,
+      geoLocation: match.geoLocation || null,
       date: match.date.split('T')[0],
       time: match.time,
       maxParticipants: match.maxParticipants,
@@ -595,6 +630,7 @@ const Matches = () => {
       date: '',
       time: '',
       location: '',
+      geoLocation: null,
       maxParticipants: 10,
       description: '',
       requirements: ''
@@ -629,6 +665,151 @@ const Matches = () => {
     } finally {
       setJoinLoading(null);
     }
+  };
+
+  // Component to display enhanced location information
+  const LocationDisplay = ({ match }) => {
+    const [showLocationModal, setShowLocationModal] = useState(false);
+    
+    const openGoogleMaps = () => {
+      if (match.geoLocation?.coordinates && match.geoLocation.coordinates[0] && match.geoLocation.coordinates[1]) {
+        const [lng, lat] = match.geoLocation.coordinates;
+        const googleMapsUrl = `https://www.google.com/maps?q=${lat},${lng}&z=16`;
+        window.open(googleMapsUrl, '_blank');
+      } else if (match.location) {
+        const googleMapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(match.location)}`;
+        window.open(googleMapsUrl, '_blank');
+      }
+    };
+
+    return (
+      <>
+        <div className="flex items-center text-sm text-gray-600">
+          <button
+            onClick={openGoogleMaps}
+            className="flex items-start text-left hover:text-blue-600 transition-colors group cursor-pointer"
+            title="Click to open in Google Maps"
+          >
+            <MapPin className="h-4 w-4 mr-2 text-red-500 group-hover:text-blue-500 mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <div className="font-medium group-hover:text-blue-600">
+                {match.geoLocation?.name || match.location}
+              </div>
+              {match.geoLocation?.address && (
+                <div className="text-xs text-gray-500 group-hover:text-blue-500 truncate">
+                  {match.geoLocation.address}
+                </div>
+              )}
+            </div>
+          </button>
+          
+          {match.geoLocation?.coordinates && (
+            <button
+              onClick={() => setShowLocationModal(true)}
+              className="ml-2 p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-blue-500"
+              title="View location details"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </button>
+          )}
+        </div>
+
+        {/* Location Details Modal */}
+        {showLocationModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Location Details</h3>
+                <button
+                  onClick={() => setShowLocationModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium text-gray-700">Name:</label>
+                  <p className="text-gray-900">{match.geoLocation?.name || match.location}</p>
+                </div>
+                
+                {match.geoLocation?.address && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Address:</label>
+                    <p className="text-gray-900">{match.geoLocation.address}</p>
+                  </div>
+                )}
+                
+                <div className="grid grid-cols-2 gap-3">
+                  {match.geoLocation?.city && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">City:</label>
+                      <p className="text-gray-900">{match.geoLocation.city}</p>
+                    </div>
+                  )}
+                  
+                  {match.geoLocation?.state && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">State:</label>
+                      <p className="text-gray-900">{match.geoLocation.state}</p>
+                    </div>
+                  )}
+                  
+                  {match.geoLocation?.pincode && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">PIN Code:</label>
+                      <p className="text-gray-900">{match.geoLocation.pincode}</p>
+                    </div>
+                  )}
+                  
+                  {match.geoLocation?.country && (
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">Country:</label>
+                      <p className="text-gray-900">{match.geoLocation.country}</p>
+                    </div>
+                  )}
+                </div>
+                
+                {match.geoLocation?.coordinates && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Coordinates:</label>
+                    <p className="text-gray-900 font-mono text-sm">
+                      {match.geoLocation.coordinates[1]?.toFixed(6)}, {match.geoLocation.coordinates[0]?.toFixed(6)}
+                    </p>
+                  </div>
+                )}
+                
+                {match.geoLocation?.rating && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Rating:</label>
+                    <p className="text-gray-900">⭐ {match.geoLocation.rating}/5</p>
+                  </div>
+                )}
+              </div>
+              
+              <div className="mt-6 flex gap-3">
+                <button
+                  onClick={openGoogleMaps}
+                  className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+                >
+                  <MapPin className="h-4 w-4" />
+                  Open in Google Maps
+                </button>
+                <button
+                  onClick={() => setShowLocationModal(false)}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </>
+    );
   };
 
   return (
@@ -808,20 +989,18 @@ const Matches = () => {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Location *
-                  </label>
-                  <input
-                    type="text"
-                    name="location"
-                    value={formData.location}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="e.g., Central Park Football Ground"
-                  />
-                </div>
+                <LocationInput
+                  value={formData.geoLocation ? {
+                    name: formData.geoLocation.name,
+                    address: formData.geoLocation.address || formData.location,
+                    coordinates: formData.geoLocation.coordinates,
+                    lat: formData.geoLocation.coordinates[1],
+                    lng: formData.geoLocation.coordinates[0]
+                  } : null}
+                  onChange={handleLocationSelect}
+                  placeholder="Enter ground name, city, or address..."
+                  required={true}
+                />
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -941,20 +1120,18 @@ const Matches = () => {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Location *
-                  </label>
-                  <input
-                    type="text"
-                    name="location"
-                    value={formData.location}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="e.g., Central Park Football Ground"
-                  />
-                </div>
+                <LocationInput
+                  value={formData.geoLocation ? {
+                    name: formData.geoLocation.name,
+                    address: formData.geoLocation.address || formData.location,
+                    coordinates: formData.geoLocation.coordinates,
+                    lat: formData.geoLocation.coordinates[1],
+                    lng: formData.geoLocation.coordinates[0]
+                  } : null}
+                  onChange={handleLocationSelect}
+                  placeholder="Enter ground name, city, or address..."
+                  required={true}
+                />
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">

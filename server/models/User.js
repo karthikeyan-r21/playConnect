@@ -6,7 +6,21 @@ const userSchema = new mongoose.Schema({
   password: String,
   mobile: String,
   dob: Date,
+  // legacy human-readable address
   location: String,
+  geoLocation: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      required: false,
+      default: 'Point'
+    },
+    coordinates: {
+      type: [Number],
+      required: false,
+      default: [0, 0]
+    }
+  },
   profileImage: String,
   media: [
     {
@@ -14,8 +28,12 @@ const userSchema = new mongoose.Schema({
       url: { type: String, required: true },
       filename: { type: String },
       uploadDate: { type: Date, default: Date.now },
+      cloudinaryId: { type: String }, // For Cloudinary deletion
     },
   ],
 }, { timestamps: true });
+
+// add 2dsphere index for geospatial queries on users
+userSchema.index({ geoLocation: '2dsphere' });
 
 module.exports = mongoose.model("User", userSchema);

@@ -269,9 +269,16 @@ const Teams = () => {
   };
 
   useEffect(() => {
-    fetchAllTeams();
-    fetchMyTeams();
-  }, []);
+    console.log('Teams component mounted, user:', user);
+    console.log('API Base URL:', import.meta.env.VITE_API_URL || 'http://localhost:5000/api');
+    
+    if (user?.id) {
+      fetchAllTeams();
+      fetchMyTeams();
+    } else {
+      console.log('User not available yet, waiting...');
+    }
+  }, [user]);
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
@@ -286,6 +293,8 @@ const Teams = () => {
     try {
       console.log('Fetching all teams with filters:', { searchQuery, selectedSportFilter });
       setIsLoading(true);
+      setError(''); // Clear previous errors
+      
       const params = {};
       if (searchQuery.trim()) {
         params.name = searchQuery;
@@ -293,12 +302,25 @@ const Teams = () => {
       if (selectedSportFilter) {
         params.sportType = selectedSportFilter;
       }
+      
+      console.log('Calling searchTeams API with params:', params);
       const response = await searchTeams(params);
       console.log('All teams response:', response);
       setAllTeams(response.teams || []);
     } catch (err) {
       console.error('Error fetching all teams:', err);
-      setError('Failed to fetch teams');
+      console.error('Error details:', err.response?.data || err.message);
+      
+      // More specific error message
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to fetch teams';
+      setError(`Failed to fetch teams: ${errorMessage}`);
+      
+      // Show network/server specific errors
+      if (err.code === 'NETWORK_ERROR' || !err.response) {
+        setError('Cannot connect to server. Please check if backend is running.');
+      } else if (err.response?.status === 500) {
+        setError('Server error. Please check backend logs.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -402,7 +424,7 @@ const Teams = () => {
       name: team.name,
       description: team.description || '',
       sportType: team.sportType || '',
-      location: team.location || '',
+      location: formatLocation(team) || '',
       minAge: team.minAge || 0
     });
     setShowEditForm(true);
@@ -673,6 +695,18 @@ const Teams = () => {
     return team.joinRequests?.some(request => request.user?._id === user?.id && request.status === 'pending');
   };
 
+  // Helper function to format location for display
+  const formatLocation = (team) => {
+    // Priority: address (string) > location coordinates
+    if (team.address) {
+      return team.address;
+    } else if (team.location && team.location.coordinates) {
+      const [lng, lat] = team.location.coordinates;
+      return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    }
+    return null;
+  };
+
   const filterMyTeams = (teams) => {
     return teams.filter(team => {
       const matchesSearch = !myTeamsSearchQuery || 
@@ -745,10 +779,10 @@ const Teams = () => {
             <Users className="h-4 w-4 mr-2" />
             <span>{team.members?.length || 0} members</span>
           </div>
-          {team.location && (
+          {formatLocation(team) && (
             <div className="flex items-center text-sm text-gray-600">
               <MapPin className="h-4 w-4 mr-2" />
-              <span>{team.location}</span>
+              <span>{formatLocation(team)}</span>
             </div>
           )}
           {team.minAge > 0 && (
@@ -796,8 +830,25 @@ const Teams = () => {
     </div>
   );
 
+  // Add loading state while user is being authenticated
+  if (!user || !user.id) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Authenticating...</p>
+          <p className="text-xs text-gray-400 mt-2">
+            User: {user ? 'Available' : 'Not available'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
+     
+
       {/* Header */}
       <div className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -1330,12 +1381,12 @@ const Teams = () => {
                       </span>
                     </div>
                   )}
-                  {selectedTeam.location && (
+                  {formatLocation(selectedTeam) && (
                     <div>
                       <h4 className="text-sm font-medium text-gray-900 mb-2">Location</h4>
                       <p className="text-sm text-gray-600 flex items-center">
                         <MapPin className="h-4 w-4 mr-2" />
-                        {selectedTeam.location}
+                        {formatLocation(selectedTeam)}
                       </p>
                     </div>
                   )}

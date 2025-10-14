@@ -10,16 +10,18 @@ router.get("/profile", auth, userController.getProfile);
 // Update current user's profile
 router.put("/updateProfile", auth, userController.updateProfile);
 
-// Update profile image
+// Update current user's profile image
 router.put("/updateProfileImage", auth, upload.single("profileImage"), userController.updateProfileImage);
 
-// Media upload
+// Media upload routes
 router.post("/upload-media", auth, mediaUpload.single("media"), userController.uploadMedia);
-
-// Get user's media
 router.get("/media", auth, userController.getUserMedia);
-
-// Delete user's media
 router.delete("/media/:mediaId", auth, userController.deleteMedia);
+
+// Search users near a given location within a radius
+router.get('/search-nearby', userController.searchNearbyUsers);
+
+// Legacy route for backward compatibility
+router.post("/uploadMedia", auth, mediaUpload.single("file"), userController.uploadMedia);
 
 module.exports = router;

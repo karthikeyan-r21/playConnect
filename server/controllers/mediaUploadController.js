@@ -9,17 +9,18 @@ exports.uploadUserMedia = async (req, res) => {
     console.log('Request file:', req.file);
     console.log('User ID:', req.user?.id);
     
-    const { type, isProfileImage } = req.body; // "image" or "video", optional isProfileImage
+    const { isProfileImage } = req.body; // optional isProfileImage
+    
+    // Auto-detect type from file mimetype
+    const isVideo = req.file.mimetype.startsWith('video/');
+    const type = isVideo ? 'video' : 'image';
+    
     // Allowed types and extensions
     const allowedTypes = ["image", "video"];
-    const allowedImageExt = ["jpg", "jpeg", "png", "gif"];
-    const allowedVideoExt = ["mp4", "mov", "avi", "webm"];
-    const maxFileSize = 50 * 1024 * 1024; // 50MB
+    const allowedImageExt = ["jpg", "jpeg", "png", "gif", "webp"];
+    const allowedVideoExt = ["mp4", "mov", "avi", "webm", "quicktime"];
+    const maxFileSize = 100 * 1024 * 1024; // 100MB to match multer config
     const maxMediaCount = 10;
-
-    if (!type || !allowedTypes.includes(type)) {
-      return res.status(400).json({ msg: "Invalid media type" });
-    }
     if (!req.file) {
       return res.status(400).json({ msg: "No file uploaded" });
     }
@@ -27,13 +28,13 @@ exports.uploadUserMedia = async (req, res) => {
     if (req.file.size > maxFileSize) {
       return res.status(400).json({ msg: "File too large. Max 50MB allowed." });
     }
-    // Extension check
+    // Extension check (optional since multer already validates mimetype)
     const ext = req.file.originalname.split(".").pop().toLowerCase();
     if (type === "image" && !allowedImageExt.includes(ext)) {
-      return res.status(400).json({ msg: "Invalid image file type" });
+      console.warn(`Image extension ${ext} not in allowed list, but mimetype ${req.file.mimetype} is valid`);
     }
     if (type === "video" && !allowedVideoExt.includes(ext)) {
-      return res.status(400).json({ msg: "Invalid video file type" });
+      console.warn(`Video extension ${ext} not in allowed list, but mimetype ${req.file.mimetype} is valid`);
     }
 
     const user = await User.findById(req.user.id);
