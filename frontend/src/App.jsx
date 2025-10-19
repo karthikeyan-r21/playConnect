@@ -7,6 +7,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Teams from './pages/Teams';
+import Tournaments from './pages/Tournaments';
 import Matches from './pages/Matches';
 import BrowseMatches from './pages/BrowseMatches';
 import ScheduledMatches from './pages/ScheduledMatches';
@@ -105,6 +106,12 @@ const AppContent = () => {
       <Route path="/teams" element={
         <ProtectedRoute>
           <Teams />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/tournaments" element={
+        <ProtectedRoute>
+          <Tournaments />
         </ProtectedRoute>
       } />
 
