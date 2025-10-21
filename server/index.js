@@ -32,6 +32,7 @@ app.use("/api/matches", require("./routes/matchRoutes"));
 app.use("/api/users", require("./routes/userRoutes"));
 app.use("/api/participants", require("./routes/participantsRoutes"));
 app.use("/api/teams", require("./routes/teamRoutes"));
+app.use("/api/tournaments", require("./routes/tournamentRoutes"));
 app.use("/api/media", require("./routes/mediaRoutes")); // Media routes enabled
 app.use("/api/location", require("./routes/locationRoutes")); // Location/SerpAPI routes
 

@@ -1,0 +1,708 @@
+{
+  "info": {
+    "name": "PlayConnect Tournament Testing",
+    "description": "Complete test suite for tournament features with 10 diverse user profiles",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseURL",
+      "value": "http://localhost:5000",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "User Registration",
+      "item": [
+        {
+          "name": "1. Alex Thompson (Team Captain - 28)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Alex Thompson\",\n  \"email\": \"alex.thompson@test.com\",\n  \"password\": \"password123\",\n  \"mobile\": \"+1234567890\",\n  \"dob\": \"1995-03-15\",\n  \"location\": \"Mumbai, Maharashtra, India\",\n  \"geoLocation\": {\n    \"type\": \"Point\",\n    \"coordinates\": [72.8777, 19.0760]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/auth/register",
+              "host": ["{{baseURL}}"],
+              "path": ["api", "auth", "register"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Registration successful\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test(\"Token received\", function () {",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson.token).to.exist;",
+                  "    pm.globals.set(\"alexToken\", responseJson.token);",
+                  "    pm.globals.set(\"alexUserId\", responseJson.user.id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2. Sarah Mitchell (Young - 17)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sarah Mitchell\",\n  \"email\": \"sarah.mitchell@test.com\",\n  \"password\": \"password123\",\n  \"mobile\": \"+1234567891\",\n  \"dob\": \"2006-08-22\",\n  \"location\": \"Delhi, India\",\n  \"geoLocation\": {\n    \"type\": \"Point\",\n    \"coordinates\": [77.1025, 28.7041]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/auth/register",
+              "host": ["{{baseURL}}"],
+              "path": ["api", "auth", "register"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Registration successful\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "const responseJson = pm.response.json();",
+                  "pm.globals.set(\"sarahToken\", responseJson.token);",
+                  "pm.globals.set(\"sarahUserId\", responseJson.user.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "3. Michael Rodriguez (Senior - 45)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Michael Rodriguez\",\n  \"email\": \"michael.rodriguez@test.com\",\n  \"password\": \"password123\",\n  \"mobile\": \"+1234567892\",\n  \"dob\": \"1978-12-08\",\n  \"location\": \"Bangalore, Karnataka, India\",\n  \"geoLocation\": {\n    \"type\": \"Point\",\n    \"coordinates\": [77.5946, 12.9716]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/auth/register",
+              "host": ["{{baseURL}}"],
+              "path": ["api", "auth", "register"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const responseJson = pm.response.json();",
+                  "pm.globals.set(\"michaelToken\", responseJson.token);",
+                  "pm.globals.set(\"michaelUserId\", responseJson.user.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "4. Priya Sharma (Perfect Age - 25)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Priya Sharma\",\n  \"email\": \"priya.sharma@test.com\",\n  \"password\": \"password123\",\n  \"mobile\": \"+1234567893\",\n  \"dob\": \"1998-06-10\",\n  \"location\": \"Pune, Maharashtra, India\",\n  \"geoLocation\": {\n    \"type\": \"Point\",\n    \"coordinates\": [73.8567, 18.5204]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/auth/register",
+              "host": ["{{baseURL}}"],
+              "path": ["api", "auth", "register"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const responseJson = pm.response.json();",
+                  "pm.globals.set(\"priyaToken\", responseJson.token);",
+                  "pm.globals.set(\"priyaUserId\", responseJson.user.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "5. James Wilson (Football - 22)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"James Wilson\",\n  \"email\": \"james.wilson@test.com\",\n  \"password\": \"password123\",\n  \"mobile\": \"+1234567894\",\n  \"dob\": \"2001-09-18\",\n  \"location\": \"Chennai, Tamil Nadu, India\",\n  \"geoLocation\": {\n    \"type\": \"Point\",\n    \"coordinates\": [80.2707, 13.0827]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/auth/register",
+              "host": ["{{baseURL}}"],
+              "path": ["api", "auth", "register"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const responseJson = pm.response.json();",
+                  "pm.globals.set(\"jamesToken\", responseJson.token);",
+                  "pm.globals.set(\"jamesUserId\", responseJson.user.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "6. Emily Chen (Tennis - 24)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Emily Chen\",\n  \"email\": \"emily.chen@test.com\",\n  \"password\": \"password123\",\n  \"mobile\": \"+1234567895\",\n  \"dob\": \"1999-04-30\",\n  \"location\": \"Hyderabad, Telangana, India\",\n  \"geoLocation\": {\n    \"type\": \"Point\",\n    \"coordinates\": [78.4867, 17.3850]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/auth/register",
+              "host": ["{{baseURL}}"],
+              "path": ["api", "auth", "register"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const responseJson = pm.response.json();",
+                  "pm.globals.set(\"emilyToken\", responseJson.token);",
+                  "pm.globals.set(\"emilyUserId\", responseJson.user.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "7. Raj Patel (Just 18 - Edge Case)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Raj Patel\",\n  \"email\": \"raj.patel@test.com\",\n  \"password\": \"password123\",\n  \"mobile\": \"+1234567896\",\n  \"dob\": \"2005-10-18\",\n  \"location\": \"Kolkata, West Bengal, India\",\n  \"geoLocation\": {\n    \"type\": \"Point\",\n    \"coordinates\": [88.3639, 22.5726]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/auth/register",
+              "host": ["{{baseURL}}"],
+              "path": ["api", "auth", "register"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const responseJson = pm.response.json();",
+                  "pm.globals.set(\"rajToken\", responseJson.token);",
+                  "pm.globals.set(\"rajUserId\", responseJson.user.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "8. Lisa Anderson (Manager - 32)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Lisa Anderson\",\n  \"email\": \"lisa.anderson@test.com\",\n  \"password\": \"password123\",\n  \"mobile\": \"+1234567897\",\n  \"dob\": \"1991-01-25\",\n  \"location\": \"Jaipur, Rajasthan, India\",\n  \"geoLocation\": {\n    \"type\": \"Point\",\n    \"coordinates\": [75.7873, 26.9124]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/auth/register",
+              "host": ["{{baseURL}}"],
+              "path": ["api", "auth", "register"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const responseJson = pm.response.json();",
+                  "pm.globals.set(\"lisaToken\", responseJson.token);",
+                  "pm.globals.set(\"lisaUserId\", responseJson.user.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "9. David Kumar (Cricket - 29)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"David Kumar\",\n  \"email\": \"david.kumar@test.com\",\n  \"password\": \"password123\",\n  \"mobile\": \"+1234567898\",\n  \"dob\": \"1994-07-14\",\n  \"location\": \"Ahmedabad, Gujarat, India\",\n  \"geoLocation\": {\n    \"type\": \"Point\",\n    \"coordinates\": [72.5714, 23.0225]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/auth/register",
+              "host": ["{{baseURL}}"],
+              "path": ["api", "auth", "register"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const responseJson = pm.response.json();",
+                  "pm.globals.set(\"davidToken\", responseJson.token);",
+                  "pm.globals.set(\"davidUserId\", responseJson.user.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "10. Maria Santos (Multi-Sport - 26)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Maria Santos\",\n  \"email\": \"maria.santos@test.com\",\n  \"password\": \"password123\",\n  \"mobile\": \"+1234567899\",\n  \"dob\": \"1997-11-03\",\n  \"location\": \"Kochi, Kerala, India\",\n  \"geoLocation\": {\n    \"type\": \"Point\",\n    \"coordinates\": [76.2673, 9.9312]\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/auth/register",
+              "host": ["{{baseURL}}"],
+              "path": ["api", "auth", "register"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const responseJson = pm.response.json();",
+                  "pm.globals.set(\"mariaToken\", responseJson.token);",
+                  "pm.globals.set(\"mariaUserId\", responseJson.user.id);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Test Tournament Creation",
+      "item": [
+        {
+          "name": "Create 18+ Football Tournament",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization", 
+                "value": "Bearer {{alexToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Elite Football Championship (18+)\",\n  \"description\": \"Professional football tournament for adults only\",\n  \"gameType\": \"football\",\n  \"startDate\": \"2025-11-01T10:00:00.000Z\",\n  \"endDate\": \"2025-11-15T18:00:00.000Z\",\n  \"registrationDeadline\": \"2025-10-25T23:59:59.000Z\",\n  \"minTeams\": 4,\n  \"maxTeams\": 16,\n  \"ageLimit\": 18,\n  \"entryCriteria\": {\n    \"ageLimitMin\": 18,\n    \"ageLimitMax\": 35,\n    \"teamSizeLimit\": {\n      \"min\": 8,\n      \"max\": 11\n    }\n  },\n  \"entryPolicy\": {\n    \"autoApprove\": false,\n    \"hostApprovalRequired\": true\n  },\n  \"logistics\": {\n    \"venue\": \"Mumbai Football Stadium\",\n    \"venueGeo\": {\n      \"type\": \"Point\",\n      \"coordinates\": [72.8777, 19.0760]\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/tournaments",
+              "host": ["{{baseURL}}"],
+              "path": ["api", "tournaments"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Tournament created successfully\", function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "const responseJson = pm.response.json();",
+                  "pm.globals.set(\"footballTournamentId\", responseJson.tournament._id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create U30 Tennis Tournament",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{emilyToken}}"
+              },
+              {
+                "key": "Content-Type", 
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Youth Tennis Championship (U30)\",\n  \"description\": \"Singles and doubles tennis for under 30\",\n  \"gameType\": \"tennis\",\n  \"participationType\": \"mixed\",\n  \"startDate\": \"2025-11-10T09:00:00.000Z\",\n  \"endDate\": \"2025-11-12T17:00:00.000Z\",\n  \"registrationDeadline\": \"2025-11-01T23:59:59.000Z\",\n  \"minTeams\": 2,\n  \"maxTeams\": 8,\n  \"ageLimit\": 0,\n  \"entryCriteria\": {\n    \"ageLimitMax\": 30,\n    \"teamSizeLimit\": {\n      \"min\": 1,\n      \"max\": 2\n    }\n  },\n  \"entryPolicy\": {\n    \"autoApprove\": true,\n    \"hostApprovalRequired\": false\n  },\n  \"logistics\": {\n    \"venue\": \"Hyderabad Tennis Club\",\n    \"venueGeo\": {\n      \"type\": \"Point\",\n      \"coordinates\": [78.4867, 17.3850]\n    }\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/tournaments",
+              "host": ["{{baseURL}}"],
+              "path": ["api", "tournaments"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const responseJson = pm.response.json();",
+                  "pm.globals.set(\"tennisTournamentId\", responseJson.tournament._id);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Test Team Creation & Join Requests",
+      "item": [
+        {
+          "name": "Create Mixed Age Football Team",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{alexToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Thunder Bolts FC\",\n  \"description\": \"Mixed age football team for testing\",\n  \"sportType\": \"Football\",\n  \"location\": \"Mumbai\",\n  \"minAge\": 0\n}"
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/teams",
+              "host": ["{{baseURL}}"],
+              "path": ["api", "teams"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const responseJson = pm.response.json();",
+                  "pm.globals.set(\"thunderBoltsTeamId\", responseJson.team._id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Sarah (17) Joins Thunder Bolts",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{sarahToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Want to play football competitively\"\n}"
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/teams/{{thunderBoltsTeamId}}/join",
+              "host": ["{{baseURL}}"],
+              "path": ["api", "teams", "{{thunderBoltsTeamId}}", "join"]
+            }
+          }
+        },
+        {
+          "name": "Michael (45) Joins Thunder Bolts",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{michaelToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Experienced player looking for competitive play\"\n}"
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/teams/{{thunderBoltsTeamId}}/join",
+              "host": ["{{baseURL}}"],
+              "path": ["api", "teams", "{{thunderBoltsTeamId}}", "join"]
+            }
+          }
+        },
+        {
+          "name": "Approve Sarah's Join Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{alexToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{sarahUserId}}\",\n  \"reason\": \"Welcome to the team!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/teams/{{thunderBoltsTeamId}}/approve",
+              "host": ["{{baseURL}}"],
+              "path": ["api", "teams", "{{thunderBoltsTeamId}}", "approve"]
+            }
+          }
+        },
+        {
+          "name": "Approve Michael's Join Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{alexToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{michaelUserId}}\",\n  \"reason\": \"Great to have experienced player!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/teams/{{thunderBoltsTeamId}}/approve",
+              "host": ["{{baseURL}}"],
+              "path": ["api", "teams", "{{thunderBoltsTeamId}}", "approve"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Test Tournament Join Validation",
+      "item": [
+        {
+          "name": "Thunder Bolts Joins 18+ Football (Should Fail)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{alexToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"teamId\": \"{{thunderBoltsTeamId}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/tournaments/{{footballTournamentId}}/join",
+              "host": ["{{baseURL}}"],
+              "path": ["api", "tournaments", "{{footballTournamentId}}", "join"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Should be rejected due to age\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson.status).to.eql(\"rejected\");",
+                  "    pm.expect(responseJson.failures).to.include(\"age-below-min\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Emily Joins Tennis Individual (Should Pass)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{emilyToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"teamId\": \"individual\"\n}"
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/tournaments/{{tennisTournamentId}}/join",
+              "host": ["{{baseURL}}"],
+              "path": ["api", "tournaments", "{{tennisTournamentId}}", "join"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Should be accepted or pending\", function () {",
+                  "    pm.response.to.have.status(200) || pm.response.to.have.status(201);",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect([\"accepted\", \"pending\"]).to.include(responseJson.status);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Michael (45) Joins U30 Tennis (Should Fail)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{michaelToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"teamId\": \"individual\"\n}"
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/tournaments/{{tennisTournamentId}}/join",
+              "host": ["{{baseURL}}"],
+              "path": ["api", "tournaments", "{{tennisTournamentId}}", "join"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test(\"Should be rejected due to age over 30\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    const responseJson = pm.response.json();",
+                  "    pm.expect(responseJson.status).to.eql(\"rejected\");",
+                  "    pm.expect(responseJson.failures).to.include(\"age-above-max\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

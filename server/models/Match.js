@@ -1,11 +1,21 @@
 const mongoose = require("mongoose");
 
 const matchSchema = new mongoose.Schema({
-  title: { type: String, required: true },
+  title: { type: String },
   gameType: { type: String, required: true },
-  date: { type: Date, required: true },
+  date: { type: Date }, // Legacy field
+  scheduledDate: { type: Date }, // New field for tournament matches
   // legacy human-readable location/address
-  location: { type: String, required: true },
+  location: { type: String },
+  
+  // Tournament-specific fields
+  tournament: { type: mongoose.Schema.Types.ObjectId, ref: "Tournament" },
+  team1: { type: mongoose.Schema.Types.ObjectId, ref: "Team" },
+  team2: { type: mongoose.Schema.Types.ObjectId, ref: "Team" },
+  team1Score: { type: Number, default: 0 },
+  team2Score: { type: Number, default: 0 },
+  round: { type: Number, default: 1 },
+  matchNumber: { type: Number },
   // geoLocation stores comprehensive location details with coordinates
   geoLocation: {
     type: {
@@ -34,13 +44,22 @@ const matchSchema = new mongoose.Schema({
   },
   description: { type: String, default: "" },
   maxPlayers: { type: Number, default: 10, min: 2 },
-  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   participants: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   status: { 
     type: String, 
-    enum: ["upcoming", "completed", "cancelled"], 
+    enum: ["upcoming", "completed", "cancelled", "scheduled", "in-progress"], 
     default: "upcoming" 
-  }
+  },
+  
+  // Match result details
+  winner: { type: mongoose.Schema.Types.ObjectId, ref: "Team" },
+  resultType: { 
+    type: String, 
+    enum: ["normal", "walkover", "forfeit", "draw"], 
+    default: "normal" 
+  },
+  notes: { type: String }
 }, { timestamps: true });
 
 // add 2dsphere index for geospatial queries on matches
